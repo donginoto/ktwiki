@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>나무위키 스타일 문서 생성기</title>
+<style>
+  :root{
+    --nw-teal:#00a495;
+    --nw-text:#222325;
+    --nw-sub:#555;
+    --nw-border:#e5e5e5;
+    --nw-border-dark:#ccc;
+    --nw-link:#3b5aa9;
+    --nw-bg:#ffffff;
+    --nw-toc-bg:#fafafa;
+    --toolbar-bg:#2d2f34;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:#f3f3f3;color:var(--nw-text);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif;}
+
+  /* ===== toolbar ===== */
+  #toolbar{
+    position:sticky;top:0;z-index:50;background:var(--toolbar-bg);
+    display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;align-items:center;
+  }
+  #toolbar button, #toolbar select{
+    background:#3f4147;color:#f1f1f1;border:1px solid #55575d;border-radius:4px;
+    padding:6px 10px;font-size:13px;cursor:pointer;white-space:nowrap;
+  }
+  #toolbar button:hover{background:var(--nw-teal);border-color:var(--nw-teal);}
+  #toolbar button:active{transform:translateY(1px);}
+  #toolbar .sep{width:1px;height:22px;background:#55575d;margin:0 2px;}
+  #toolbar .grow{flex:1;}
+  #toolbar .primary{background:var(--nw-teal);border-color:var(--nw-teal);font-weight:600;}
+  #toolbar .primary:hover{filter:brightness(1.1);}
+
+  /* ===== page shell ===== */
+  #page-wrap{max-width:920px;margin:20px auto 60px;background:var(--nw-bg);
+    box-shadow:0 0 0 1px #ddd;}
+  #capture-area{padding:28px 32px 40px;}
+
+  #doc-title{
+    font-size:28px;font-weight:700;border-bottom:3px solid var(--nw-text);
+    padding-bottom:10px;margin:0 0 4px;outline:none;
+  }
+  #doc-subtitle{font-size:12px;color:#999;margin:0 0 18px;}
+
+  /* toc */
+  #toc-box{
+    float:right;clear:right;background:var(--nw-toc-bg);border:1px solid var(--nw-border-dark);
+    padding:10px 14px;margin:0 0 16px 16px;font-size:13.5px;min-width:200px;max-width:280px;
+  }
+  #toc-box .toc-title{font-weight:700;text-align:center;border-bottom:1px solid var(--nw-border-dark);
+    padding-bottom:6px;margin-bottom:6px;}
+  #toc-box ol{margin:0;padding-left:18px;}
+  #toc-box ol ol{padding-left:16px;font-size:13px;}
+  #toc-box li{margin:3px 0;}
+  #toc-box a{color:var(--nw-link);text-decoration:none;}
+
+  /* body content, contenteditable */
+  #doc-body{
+    font-size:15px;line-height:1.75;min-height:300px;outline:none;
+  }
+  #doc-body h2, #doc-body h3, #doc-body h4{
+    font-weight:700;border-bottom:1px solid var(--nw-border);
+    margin:28px 0 10px;padding-bottom:6px;clear:left;
+  }
+  #doc-body h2{font-size:21px;}
+  #doc-body h3{font-size:18.5px;border-bottom:none;}
+  #doc-body h4{font-size:16.5px;border-bottom:none;color:#333;}
+  #doc-body p{margin:0 0 12px;}
+  #doc-body a{color:var(--nw-link);text-decoration:none;}
+  #doc-body a:hover{text-decoration:underline;}
+  #doc-body del{text-decoration:line-through;color:#888;}
+  #doc-body b, #doc-body strong{font-weight:700;}
+  #doc-body blockquote.wiki-quote{
+    margin:14px 0;padding:10px 16px;border-left:4px solid var(--nw-teal);
+    background:#f7f9f9;color:#444;font-size:14.5px;
+  }
+  #doc-body blockquote.wiki-quote p{margin:0;}
+  #doc-body .wiki-fn{
+    font-size:11px;color:var(--nw-teal);cursor:default;font-weight:600;
+    vertical-align:super;line-height:0;margin-left:1px;
+  }
+  #doc-body ul, #doc-body ol{margin:0 0 12px;padding-left:24px;}
+  #doc-body hr{border:none;border-top:1px solid var(--nw-border-dark);margin:20px 0;}
+  #doc-body table{border-collapse:collapse;margin:12px 0;}
+  #doc-body table td, #doc-body table th{border:1px solid #ccc;padding:6px 10px;}
+
+  /* footnotes */
+  #footnote-box{margin-top:36px;clear:both;}
+  #footnote-box hr{border:none;border-top:1px solid var(--nw-border-dark);margin-bottom:10px;}
+  #footnote-box ol{font-size:12.5px;color:var(--nw-sub);padding-left:20px;margin:0;}
+  #footnote-box li{margin:4px 0;}
+  #footnote-box.empty{display:none;}
+
+  #wiki-footer{
+    margin-top:30px;padding-top:14px;border-top:1px solid var(--nw-border);
+    font-size:11px;color:#aaa;clear:both;
+  }
+
+  /* modal for footnote text input */
+  #fn-modal-backdrop{
+    position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;
+    align-items:center;justify-content:center;z-index:100;
+  }
+  #fn-modal{background:#fff;padding:18px;border-radius:6px;width:min(90vw,420px);}
+  #fn-modal h4{margin:0 0 8px;font-size:14px;}
+  #fn-modal textarea{width:100%;min-height:80px;font-size:13px;padding:8px;
+    border:1px solid #ccc;border-radius:4px;resize:vertical;font-family:inherit;}
+  #fn-modal .fn-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px;}
+  #fn-modal button{padding:6px 14px;font-size:13px;border-radius:4px;border:1px solid #ccc;cursor:pointer;background:#f5f5f5;}
+  #fn-modal button.confirm{background:var(--nw-teal);border-color:var(--nw-teal);color:#fff;}
+
+  #toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:#222;color:#fff;padding:10px 18px;border-radius:6px;font-size:13px;
+    opacity:0;pointer-events:none;transition:.25s;z-index:200;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  @media (max-width:640px){
+    #capture-area{padding:18px 16px 30px;}
+    #doc-title{font-size:22px;}
+    #toc-box{float:none;max-width:none;margin:0 0 16px;}
+    #toolbar button, #toolbar select{padding:6px 8px;font-size:12px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <select id="headingSelect" title="문단 스타일">
+    <option value="P">본문</option>
+    <option value="H2">1단계 문단</option>
+    <option value="H3">2단계 문단</option>
+    <option value="H4">3단계 문단</option>
+  </select>
+  <div class="sep"></div>
+  <button id="btnBold"><b>B</b> 볼드</button>
+  <button id="btnStrike"><s>취소선</s></button>
+  <button id="btnQuote">인용구</button>
+  <button id="btnFootnote">각주</button>
+  <button id="btnHr">구분선</button>
+  <div class="sep"></div>
+  <button id="btnToc">목차 생성</button>
+  <div class="grow"></div>
+  <button id="btnCopy" class="primary">HTML 복사</button>
+  <button id="btnImage" class="primary">이미지 저장</button>
+</div>
+
+<div id="page-wrap">
+  <div id="capture-area">
+    <div id="doc-title" contenteditable="true">문서 제목</div>
+    <div id="doc-subtitle">최근 수정 시각: 2026-07-12</div>
+
+    <div id="toc-box" style="display:none;">
+      <div class="toc-title">목차</div>
+      <ol id="toc-list"></ol>
+    </div>
+
+    <div id="doc-body" contenteditable="true">
+      <p>여기에 본문을 입력하세요. 위 툴바로 <b>볼드</b>, <del>취소선</del>, 인용구, 각주를 적용할 수 있습니다.</p>
+      <h2 id="h-1">개요</h2>
+      <p>단락 텍스트를 자유롭게 작성하고, 소제목은 툴바의 문단 스타일에서 선택하세요.</p>
+      <blockquote class="wiki-quote"><p>인용구는 이렇게 표시됩니다.</p></blockquote>
+    </div>
+
+    <div id="footnote-box" class="empty">
+      <hr>
+      <ol id="footnote-list"></ol>
+    </div>
+
+    <div id="wiki-footer">이 문서는 나무위키 스타일 생성기로 제작되었습니다.</div>
+  </div>
+</div>
+
+<div id="fn-modal-backdrop">
+  <div id="fn-modal">
+    <h4>각주 내용 입력</h4>
+    <textarea id="fn-input" placeholder="각주로 표시할 내용을 입력하세요"></textarea>
+    <div class="fn-actions">
+      <button id="fnCancel">취소</button>
+      <button id="fnConfirm" class="confirm">삽입</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+(function(){
+  const docBody = document.getElementById('doc-body');
+  let savedRange = null;
+
+  function saveSelection(){
+    const sel = window.getSelection();
+    if(sel && sel.rangeCount > 0){
+      const r = sel.getRangeAt(0);
+      if(docBody.contains(r.commonAncestorContainer)){
+        savedRange = r.cloneRange();
+      }
+    }
+  }
+  function restoreSelection(){
+    if(!savedRange) return;
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+  }
+  docBody.addEventListener('keyup', saveSelection);
+  docBody.addEventListener('mouseup', saveSelection);
+  docBody.addEventListener('focus', saveSelection);
+
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 1800);
+  }
+
+  // ---- Bold / Strike ----
+  document.getElementById('btnBold').addEventListener('click', ()=>{
+    docBody.focus(); restoreSelection();
+    document.execCommand('bold');
+    saveSelection();
+  });
+  document.getElementById('btnStrike').addEventListener('click', ()=>{
+    docBody.focus(); restoreSelection();
+    document.execCommand('strikeThrough');
+    saveSelection();
+  });
+
+  // ---- Heading select ----
+  document.getElementById('headingSelect').addEventListener('change', (e)=>{
+    docBody.focus(); restoreSelection();
+    document.execCommand('formatBlock', false, e.target.value);
+    saveSelection();
+    e.target.value = 'P';
+  });
+
+  // ---- Horizontal rule ----
+  document.getElementById('btnHr').addEventListener('click', ()=>{
+    docBody.focus(); restoreSelection();
+    document.execCommand('insertHorizontalRule');
+    saveSelection();
+  });
+
+  // ---- Quote ----
+  document.getElementById('btnQuote').addEventListener('click', ()=>{
+    docBody.focus(); restoreSelection();
+    document.execCommand('formatBlock', false, 'BLOCKQUOTE');
+    // find the blockquote just created near selection and tag class
+    const sel = window.getSelection();
+    if(sel.rangeCount){
+      let node = sel.getRangeAt(0).startContainer;
+      while(node && node !== docBody){
+        if(node.nodeType === 1 && node.tagName === 'BLOCKQUOTE'){
+          node.classList.add('wiki-quote');
+          break;
+        }
+        node = node.parentNode;
+      }
+    }
+    saveSelection();
+  });
+
+  // ---- Footnote ----
+  const fnBackdrop = document.getElementById('fn-modal-backdrop');
+  const fnInput = document.getElementById('fn-input');
+
+  document.getElementById('btnFootnote').addEventListener('click', ()=>{
+    saveSelection();
+    fnInput.value = '';
+    fnBackdrop.style.display = 'flex';
+    fnInput.focus();
+  });
+  document.getElementById('fnCancel').addEventListener('click', ()=>{
+    fnBackdrop.style.display = 'none';
+  });
+  document.getElementById('fnConfirm').addEventListener('click', ()=>{
+    const text = fnInput.value.trim();
+    fnBackdrop.style.display = 'none';
+    if(!text) return;
+    docBody.focus();
+    restoreSelection();
+    const sup = document.createElement('sup');
+    sup.className = 'wiki-fn';
+    sup.dataset.note = text;
+    sup.textContent = '[*]';
+    const range = savedRange || document.createRange();
+    if(!savedRange){
+      range.selectNodeContents(docBody);
+      range.collapse(false);
+    }
+    range.insertNode(sup);
+    range.setStartAfter(sup);
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    savedRange = range.cloneRange();
+    renumberFootnotes();
+  });
+
+  function renumberFootnotes(){
+    const fns = docBody.querySelectorAll('.wiki-fn');
+    const list = document.getElementById('footnote-list');
+    const box = document.getElementById('footnote-box');
+    list.innerHTML = '';
+    if(fns.length === 0){
+      box.classList.add('empty');
+      return;
+    }
+    box.classList.remove('empty');
+    fns.forEach((fn, i)=>{
+      fn.textContent = '[' + (i+1) + ']';
+      const li = document.createElement('li');
+      li.textContent = (i+1) + '. ' + fn.dataset.note;
+      list.appendChild(li);
+    });
+  }
+
+  // ---- TOC generation ----
+  document.getElementById('btnToc').addEventListener('click', ()=>{
+    const headings = docBody.querySelectorAll('h2, h3, h4');
+    const tocBox = document.getElementById('toc-box');
+    const tocList = document.getElementById('toc-list');
+    tocList.innerHTML = '';
+    if(headings.length === 0){
+      tocBox.style.display = 'none';
+      showToast('소제목(문단 스타일)이 없어 목차를 만들 수 없습니다');
+      return;
+    }
+    let counters = [0,0,0];
+    let currentOl = [tocList, null, null];
+    headings.forEach((h, idx)=>{
+      if(!h.id) h.id = 'h-' + (idx+1);
+      const level = h.tagName === 'H2' ? 0 : h.tagName === 'H3' ? 1 : 2;
+      counters[level]++;
+      for(let k=level+1;k<3;k++) counters[k]=0;
+      const label = counters.slice(0,level+1).join('.');
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = '#' + h.id;
+      a.textContent = label + '. ' + h.textContent;
+      li.appendChild(a);
+      if(level === 0){
+        tocList.appendChild(li);
+        currentOl[1] = null;
+      } else {
+        let parentOl = tocList;
+        // find or create nested ol under the last li at level-1
+        let target = tocList.lastElementChild;
+        for(let lv=1; lv<=level; lv++){
+          if(!target) break;
+          let nestedOl = target.querySelector(':scope > ol');
+          if(!nestedOl){
+            nestedOl = document.createElement('ol');
+            target.appendChild(nestedOl);
+          }
+          if(lv === level){
+            nestedOl.appendChild(li);
+          } else {
+            target = nestedOl.lastElementChild;
+          }
+        }
+      }
+    });
+    tocBox.style.display = 'block';
+    showToast('목차를 생성했습니다');
+  });
+
+  // ---- Build exportable HTML string ----
+  function buildExportHTML(){
+    renumberFootnotes();
+    const clone = document.getElementById('capture-area').cloneNode(true);
+    clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+    const styleText = document.querySelector('style').textContent;
+    const title = document.getElementById('doc-title').textContent || '문서';
+    return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>${title}</title>
+<style>
+body{margin:0;background:#f3f3f3;}
+${styleText}
+</style>
+</head>
+<body>
+<div id="page-wrap">
+${clone.outerHTML}
+</div>
+</body>
+</html>`;
+  }
+
+  document.getElementById('btnCopy').addEventListener('click', async ()=>{
+    const html = buildExportHTML();
+    try{
+      await navigator.clipboard.writeText(html);
+      showToast('HTML 코드가 클립보드에 복사되었습니다');
+    }catch(e){
+      const ta = document.createElement('textarea');
+      ta.value = html;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('HTML 코드가 클립보드에 복사되었습니다');
+    }
+  });
+
+  document.getElementById('btnImage').addEventListener('click', ()=>{
+    renumberFootnotes();
+    const target = document.getElementById('capture-area');
+    showToast('이미지를 생성하는 중...');
+    html2canvas(target, {backgroundColor:'#ffffff', scale:2}).then(canvas=>{
+      const link = document.createElement('a');
+      const title = (document.getElementById('doc-title').textContent || 'document').trim() || 'document';
+      link.download = title + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }).catch(()=>{
+      showToast('이미지 생성에 실패했습니다');
+    });
+  });
+
+  renumberFootnotes();
+})();
+</script>
+</body>
+</html>
