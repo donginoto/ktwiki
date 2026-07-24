@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>XX위키 스타일 문서 생성기</title>
+<title>깡통위키 문서 생성기</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
@@ -23,7 +23,13 @@ body{margin:0;background:#e8eaed;font-family:'Pretendard',-apple-system,BlinkMac
 #toolbar{position:sticky;top:37px;z-index:55;background:#fff;border-bottom:1px solid #d5dadd;padding:6px 10px;display:flex;gap:4px;flex-wrap:wrap;align-items:center}
 #toolbar .sep{width:1px;height:20px;background:#dfe4e6;margin:0 4px}
 #toolbar .grp{font-size:11px;color:#8a9296;margin-right:2px}
-.bar{background:#fbfcfc;border:1px solid #d5dadd;border-radius:4px;padding:8px 10px;margin:0 0 10px;display:none;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:70;background:#fff;border-top:1px solid #cfd5d8;box-shadow:0 -2px 10px rgba(0,0,0,.09);padding:9px 14px;margin:0;display:none;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px}
+.bar label{color:#5d6669}
+input[type=color]{width:34px;height:28px;padding:2px;border:1px solid #c9ced1;border-radius:4px;background:#fff;vertical-align:middle;cursor:pointer}
+.fn-item .fn-text{cursor:text}
+.fn-item .fn-del{font-family:inherit;font-size:11px;line-height:1;margin-left:6px;padding:2px 4px;border:1px solid #d5dadd;background:#fff;color:#8a9296;border-radius:3px;cursor:pointer}
+.fn-item .fn-del:hover{background:#f4f6f7;color:#2b2f31}
+.fn-item.flash{background:#fff6b8}
 .bar.on{display:flex}
 .bar b{font-size:12px;color:#5d6669;margin-right:2px}
 input[type=text],input[type=number],select,textarea{font-family:inherit;font-size:12.5px;padding:6px 7px;border:1px solid #c9ced1;border-radius:4px;background:#fff;color:#2b2f31}
@@ -65,7 +71,7 @@ body.capturing [contenteditable]{outline:none!important}
 <body>
 
 <div id="appbar">
-  <h1>XX위키 스타일 문서 생성기</h1>
+  <h1>깡통위키 문서 생성기</h1>
   <div class="spacer"></div>
   <button class="btn dark" id="btnOutline">목차 생성 / 편집</button>
   <button class="btn dark" id="btnPreview">보기 모드</button>
@@ -87,9 +93,6 @@ body.capturing [contenteditable]{outline:none!important}
   <button class="btn" data-cmd="insertUnorderedList">• 목록</button>
   <button class="btn" data-cmd="insertOrderedList">1. 목록</button>
   <button class="btn" id="btnHr">구분선</button>
-  <button class="btn" data-cmd="justifyLeft">좌</button>
-  <button class="btn" data-cmd="justifyCenter">중</button>
-  <button class="btn" data-cmd="justifyRight">우</button>
   <span class="sep"></span>
   <span class="grp">삽입</span>
   <button class="btn" id="btnFn">주석</button>
@@ -104,20 +107,26 @@ body.capturing [contenteditable]{outline:none!important}
 <div id="stage">
 
   <div class="bar" id="tableBar">
-    <b>표</b>
-    <button class="btn" data-t="rowAbove">위에 행 추가</button>
-    <button class="btn" data-t="rowBelow">아래에 행 추가</button>
+    <b>표 크기</b>
+    <label>행 <input type="number" id="tblRows" min="1" max="60" value="3"></label>
+    <label>열 <input type="number" id="tblCols" min="1" max="30" value="3"></label>
+    <button class="btn" data-t="resize">크기 적용</button>
+    <span class="sep"></span>
+    <b>끼워넣기</b>
+    <button class="btn" data-t="rowAbove">위에 행</button>
+    <button class="btn" data-t="rowBelow">아래에 행</button>
     <button class="btn" data-t="rowDel">행 삭제</button>
-    <button class="btn" data-t="colLeft">왼쪽에 열 추가</button>
-    <button class="btn" data-t="colRight">오른쪽에 열 추가</button>
+    <button class="btn" data-t="colLeft">왼쪽에 열</button>
+    <button class="btn" data-t="colRight">오른쪽에 열</button>
     <button class="btn" data-t="colDel">열 삭제</button>
     <span class="sep"></span>
-    <b>배경</b>
-    <input type="text" id="cellHex" value="#f5f5f5" size="8" placeholder="#f5f5f5">
+    <b>배경색</b>
+    <input type="color" id="cellPick" value="#f5f5f5">
+    <input type="text" id="cellHex" value="#f5f5f5" size="8">
     <select id="bgScope">
-      <option value="cell">이 칸</option>
-      <option value="row">이 행</option>
-      <option value="col">이 열</option>
+      <option value="sel">선택한 칸</option>
+      <option value="row">이 행 전체</option>
+      <option value="col">이 열 전체</option>
       <option value="table">표 전체</option>
     </select>
     <button class="btn" data-t="bg">배경색 적용</button>
@@ -125,9 +134,6 @@ body.capturing [contenteditable]{outline:none!important}
     <span class="sep"></span>
     <button class="btn" data-t="th">제목칸으로</button>
     <button class="btn" data-t="td">일반칸으로</button>
-    <button class="btn" data-t="alignL">좌</button>
-    <button class="btn" data-t="alignC">중</button>
-    <button class="btn" data-t="alignR">우</button>
     <button class="btn" data-t="tableDel">표 삭제</button>
   </div>
 
@@ -479,6 +485,11 @@ $('#tocList').addEventListener('click',e=>{
 /* 목차 ↔ 본문 제목 연동 */
 document.addEventListener('input',e=>{
   const t=e.target;
+  if(t.classList&&t.classList.contains('fn-text')){
+    const ref=document.getElementById('fnref-'+t.closest('.fn-item').dataset.n);
+    if(ref){ref.dataset.fn=t.textContent;ref.setAttribute('title',t.textContent);}
+    return;
+  }
   if(t.classList&&t.classList.contains('head-title')){
     const sec=t.closest('.wiki-section');
     const el=document.querySelector('.toc-item[data-ref="'+sec.id+'"] .toc-text');
@@ -582,7 +593,7 @@ $('#btnQuote').addEventListener('click',()=>{
 $('#btnFn').addEventListener('click',()=>{
   if(!bodyReady()) return;
   dialog({title:'주석 넣기',
-    note:'문서 맨 아래에 번호와 함께 자동으로 정리됩니다. 넣은 주석을 클릭하면 다시 고칠 수 있습니다.',
+    note:'문서 맨 아래에 번호와 함께 자동으로 정리됩니다. 본문의 주석 번호를 누르면 아래 목록으로 이동하고, 목록에서 내용을 바로 고칠 수 있습니다.',
     fields:[{key:'t',label:'주석 내용',type:'textarea',value:''}],
     onOk:v=>{
       if(!v.t.trim()){toast('내용이 비어 있습니다');return;}
@@ -592,16 +603,29 @@ $('#btnFn').addEventListener('click',()=>{
 });
 function renderFootnotes(){
   const refs=$$('#wiki .fn-ref'), area=$('#footnotes');
+  const ae=document.activeElement;
+  if(ae&&ae.closest&&ae.closest('#footnotes')) return;   // 주석을 고치는 중에는 다시 그리지 않음
   if(!refs.length){area.innerHTML='';return;}
+  const ed=document.body.classList.contains('preview')?'false':'true';
   let html='';
   refs.forEach((r,i)=>{
     const n=i+1;
     r.textContent='['+n+']';
     r.setAttribute('title',r.dataset.fn||'');
+    r.setAttribute('href','#fn-'+n);
     r.id='fnref-'+n;
-    html+='<div class="fn-item"><a class="fn-no" href="#fnref-'+n+'">['+n+']</a><span>'+esc(r.dataset.fn||'')+'</span></div>';
+    html+='<div class="fn-item" id="fn-'+n+'" data-n="'+n+'">'+
+      '<a class="fn-no" href="#fnref-'+n+'">['+n+']</a>'+
+      '<span class="fn-text" contenteditable="'+ed+'" spellcheck="false">'+esc(r.dataset.fn||'')+'</span>'+
+      '<button type="button" class="fn-del editor-only" title="이 주석 삭제">✕</button></div>';
   });
   area.innerHTML=html;
+}
+function jumpTo(el){
+  if(!el) return;
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  el.classList.add('flash');
+  setTimeout(()=>el.classList.remove('flash'),1100);
 }
 let fnTimer=null;
 function afterEdit(){clearTimeout(fnTimer);fnTimer=setTimeout(renderFootnotes,250);}
@@ -657,11 +681,14 @@ $('#fileInput').addEventListener('change',e=>{
 let selImg=null;
 $('#wiki').addEventListener('click',e=>{
   const ref=e.target.closest('.fn-ref');
-  if(ref&&!document.body.classList.contains('preview')){
-    dialog({title:'주석 수정',okText:'저장',
-      note:'내용을 모두 지우고 저장하면 주석이 삭제됩니다.',
-      fields:[{key:'t',label:'주석 내용',type:'textarea',value:ref.dataset.fn||''}],
-      onOk:v=>{ if(!v.t.trim()) ref.remove(); else ref.dataset.fn=v.t.trim(); renderFootnotes(); }});
+  if(ref){ e.preventDefault(); jumpTo(document.getElementById('fn-'+(ref.id.split('-')[1]||''))); return; }
+  const no=e.target.closest('.fn-no');
+  if(no){ e.preventDefault(); jumpTo(document.getElementById('fnref-'+(no.closest('.fn-item').dataset.n))); return; }
+  const del=e.target.closest('.fn-del');
+  if(del){
+    const n=del.closest('.fn-item').dataset.n;
+    const mark=document.getElementById('fnref-'+n);
+    confirmBox('주석 ['+n+']을 삭제합니다.',()=>{mark&&mark.remove();renderFootnotes();toast('주석을 삭제했습니다');});
     return;
   }
   if(selImg){selImg.classList.remove('sel');selImg=null;}
@@ -712,14 +739,44 @@ function curCell(){
   let n=s.getRangeAt(0).startContainer; n=n.nodeType===1?n:n.parentElement;
   return n?n.closest('#wiki td,#wiki th'):null;
 }
-let lastCell=null;
+let lastCell=null, lastCells=[];
+function cellsOfSelection(cell){
+  const table=cell.closest('table'), s=getSelection();
+  if(!s.rangeCount) return [cell];
+  const r=s.getRangeAt(0);
+  if(r.collapsed) return [cell];
+  const list=[...table.querySelectorAll('td,th')].filter(c=>{try{return r.intersectsNode(c);}catch(e){return false;}});
+  return list.length?list:[cell];
+}
+function resizeTable(t,R,C){
+  [...t.rows].forEach(row=>{
+    while(row.cells.length>C) row.deleteCell(-1);
+    while(row.cells.length<C){
+      const tag=(row.cells[0]&&row.cells[0].tagName==='TH')?'th':'td';
+      const c=document.createElement(tag); c.innerHTML='<br>'; row.appendChild(c);
+    }
+  });
+  const tb=t.tBodies[0]||t;
+  while(t.rows.length>R) t.rows[t.rows.length-1].remove();
+  while(t.rows.length<R){
+    const tr=document.createElement('tr');
+    for(let i=0;i<C;i++){const c=document.createElement('td');c.innerHTML='<br>';tr.appendChild(c);}
+    tb.appendChild(tr);
+  }
+}
+$('#cellPick').addEventListener('input',()=>{$('#cellHex').value=$('#cellPick').value;});
+$('#cellHex').addEventListener('input',()=>{const h=hex($('#cellHex').value);if(h&&h.length===7)$('#cellPick').value=h;});
 $('#tableBar').addEventListener('click',e=>{
   const b=e.target.closest('[data-t]'); if(!b) return;
   const cell=lastCell;
   if(!cell||!cell.isConnected){toast('표의 칸을 먼저 클릭하세요');return;}
   const tr=cell.parentElement, table=cell.closest('table'), idx=[...tr.children].indexOf(cell), a=b.dataset.t;
   const mk=tag=>{const c=document.createElement(tag);c.innerHTML='<br>';return c;};
-  if(a==='rowAbove'||a==='rowBelow'){
+  if(a==='resize'){
+    const R=Math.min(60,Math.max(1,+$('#tblRows').value||1)), C=Math.min(30,Math.max(1,+$('#tblCols').value||1));
+    resizeTable(table,R,C); toast(R+'행 '+C+'열로 바꿨습니다');
+  }
+  else if(a==='rowAbove'||a==='rowBelow'){
     const ntr=document.createElement('tr');
     [...tr.children].forEach(c=>ntr.appendChild(mk(c.tagName==='TH'?'th':'td')));
     tr.parentElement.insertBefore(ntr,a==='rowBelow'?tr.nextSibling:tr);
@@ -740,21 +797,19 @@ $('#tableBar').addEventListener('click',e=>{
     const color=a==='bg'?hex($('#cellHex').value):null;
     if(a==='bg'&&!color){toast('헥스코드를 확인하세요 (예: #f5f5f5)');return;}
     const scope=$('#bgScope').value;
-    let targets=[cell];
+    let targets=(lastCells&&lastCells.length)?lastCells:[cell];
     if(scope==='row') targets=[...tr.children];
     else if(scope==='col') targets=[...table.rows].map(r=>r.cells[idx]).filter(Boolean);
     else if(scope==='table') targets=[...table.querySelectorAll('td,th')];
     targets.forEach(c=>c.style.backgroundColor=color||'');
+    toast(color?targets.length+'칸에 배경색을 넣었습니다':'배경색을 지웠습니다');
   }
   else if(a==='th'||a==='td'){
     const nc=document.createElement(a);
     nc.innerHTML=cell.innerHTML; nc.style.cssText=cell.style.cssText;
     cell.replaceWith(nc); lastCell=nc;
   }
-  else if(a==='alignL') cell.style.textAlign='left';
-  else if(a==='alignC') cell.style.textAlign='center';
-  else if(a==='alignR') cell.style.textAlign='right';
-  else if(a==='tableDel') confirmBox('이 표를 삭제합니다.',()=>{table.remove();lastCell=null;updateBars();});
+  else if(a==='tableDel'){ confirmBox('이 표를 삭제합니다.',()=>{table.remove();lastCell=null;lastCells=[];updateBars();}); return; }
   updateBars();
 });
 function updateBars(){
@@ -762,9 +817,16 @@ function updateBars(){
   let inWiki=false;
   const sel=getSelection();
   if(sel.rangeCount){let n=sel.getRangeAt(0).startContainer;n=n.nodeType===1?n:n.parentElement;inWiki=!!(n&&n.closest('#wiki'));}
-  if(c) lastCell=c; else if(inWiki) lastCell=null;
+  if(c){lastCell=c;lastCells=cellsOfSelection(c);}
+  else if(inWiki){lastCell=null;lastCells=[];}
   const prev=document.body.classList.contains('preview');
-  $('#tableBar').classList.toggle('on',!!(lastCell&&lastCell.isConnected)&&!prev);
+  const hasCell=!!(lastCell&&lastCell.isConnected);
+  if(hasCell && document.activeElement!==$('#tblRows') && document.activeElement!==$('#tblCols')){
+    const t=lastCell.closest('table');
+    $('#tblRows').value=t.rows.length;
+    $('#tblCols').value=Math.max(...[...t.rows].map(r=>r.cells.length));
+  }
+  $('#tableBar').classList.toggle('on',hasCell&&!selImg&&!prev);
   $('#imgBar').classList.toggle('on',!!selImg&&!prev);
 }
 
