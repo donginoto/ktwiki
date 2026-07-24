@@ -65,6 +65,7 @@ body.capturing [contenteditable]{outline:none!important}
 #shotVeil{position:fixed;inset:0;z-index:500;background:#e8eaed;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:18px 0}
 #shot{width:430px;background:#fff;padding:22px 18px;box-sizing:border-box}
 #shot .fold-btn{display:none}
+#shot details.wiki-sec>summary.wiki-heading:after{content:''}
 #shot .wiki-body{font-size:15px}
 #shot .wiki-toc{min-width:0;width:100%;padding-right:12px}
 #shot .wiki-title{font-size:1.7em}
@@ -128,6 +129,8 @@ body.capturing [contenteditable]{outline:none!important}
   <button class="btn" data-cmd="insertUnorderedList">• 목록</button>
   <button class="btn" data-cmd="insertOrderedList">1. 목록</button>
   <button class="btn" id="btnHr">구분선</button>
+  <button class="btn" data-cmd="justifyCenter" title="가운데 정렬">가운데</button>
+  <button class="btn" data-cmd="justifyLeft" title="왼쪽 정렬">왼쪽</button>
   <span class="sep"></span>
   <span class="grp">삽입</span>
   <button class="btn" id="btnFn">주석</button>
@@ -173,6 +176,10 @@ body.capturing [contenteditable]{outline:none!important}
     <button class="btn" data-t="bg">배경색 적용</button>
     <button class="btn" data-t="bgClear">배경 지우기</button>
     <span class="sep"></span>
+    <button class="btn" data-t="merge">칸 병합</button>
+    <button class="btn" data-t="split">병합 해제</button>
+    <button class="btn" data-t="alignC">칸 가운데</button>
+    <button class="btn" data-t="alignL">칸 왼쪽</button>
     <button class="btn" data-t="th">제목칸으로</button>
     <button class="btn" data-t="td">일반칸으로</button>
     <button class="btn" data-t="tableDel">표 삭제</button>
@@ -222,8 +229,8 @@ body.capturing [contenteditable]{outline:none!important}
 
 <div id="veil"><div class="modal" id="modal"></div></div>
 <div id="toast"></div>
-<input type="file" id="fileInput" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/*" style="display:none">
-<input type="file" id="jsonInput" accept=".json,application/json" style="display:none">
+<input type="file" id="fileInput" accept="image/*" style="display:none">
+<input type="file" id="jsonInput" style="display:none">
 
 <script>
 /* =========================================================
@@ -249,7 +256,8 @@ const WIKI_CSS = `
 .wiki-cat .cat-body{color:#0275d8}
 .wiki-para{margin:0 0 6px;min-height:1.72em}
 .wiki-detail{margin:8px 0 8px 2px;line-height:1.7}
-.detail-icon{vertical-align:-3px;margin-right:4px}
+.detail-icon{display:inline-block;width:1.05em;height:1.05em;vertical-align:-3px;margin-right:4px;
+  background:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACo0lEQVR42s1Vz2tTQRD+Zt++F5OmTVsLVloTxItYbx5EEEIv1TZCQUgOHpXSg/+AF4kF/wLRSina9tBLAuLFtiJY/Ae82YMYpGlPHiqNMbF5uzse8tL8Tmyt4AfLso+3883MNzNLaASD6s4Exv8MavQ+sjwdYkcdfs/agRwSaX1cAlGblsjydMio0kf8QgZF/oKCyVzY3z8PAEgmRUsHG1PaAFkXgKMICkMkqRemfF+VtOxwv2yeQe20avKKmFxWzKzZsGImi9qKHFma7h99HhsBgdtE2EwAYgKBAFT2dn7DaA4Iya8jT6eGMTdnWpGIbiKxxeU8j22Vd/bIGeTzlfIgXOEAXmEzKg//OQqBTcIFgZFIa1QpDAhs9ToM8Dcr6LsWzvSsIJHWeBS1aqtTdiPQrjkdXo3tqT1byEHXAIApuCQCNhdz3M8Mn84dGBF07oQXJ3eyM+sPsBmVGP+gqn3gVUF4NTaAgsmQFAOsmEEgBvaJ2XjVUu0eBhggAoU8tVzht231w72/O7s2XyHpGgEJChF1KHXtsRpIU3S15beehRdubGfH375BKm511QCamVXrBcVc03IEw4K1MXRKps69uHkdibSRHRqIWwyTzqMGBBg2kFZAkO4DwE0RcLUMhWeg06p3SkALvy11wb23fXdjrWWKqNryRx3TSvQ4Uv8sPd6d3XiJZFQikfbmjGc0awdyI6pw1SZLEB10bD7SxIpliMDviBAUQcc2+dLKzsz6QySjEnO1ZXpMjKbifpHLf7WCvjMqX3q/09czAQCIp03F6WaR2wytOoxtET5dYuf7lqMsGtRF97OtS7eRWDNIJgmJv30FK+/H0tRweHEyE3kycREAkIpbJ/oSnl24NTQ6H7t80sabkew+NI8fyZ9o9i/xG+ZqLmtbxSnqAAAAAElFTkSuQmCC) no-repeat center/contain}
 .wiki-toc{display:inline-block;min-width:280px;max-width:100%;border:1px solid #e0e0e0;background:#fff;
   padding:10px 24px 10px 12px;margin:14px 0 22px;border-radius:2px;font-size:15px;line-height:1.6}
 .toc-title{font-weight:700;font-size:16px;margin-bottom:4px;color:#373a3c}
@@ -286,10 +294,18 @@ const WIKI_CSS = `
 .wiki-section.collapsed>.wiki-heading{border-bottom-style:dashed}
 .wiki-folder{border:1px solid #c8ccd0;margin:12px 0;font-size:.95em;background:#fff}
 .folder-head{padding:7px 10px;text-align:center;font-weight:700;line-height:1.5}
-.folder-toggle{padding:3px 10px;text-align:center;font-size:.9em;border-top:1px solid #c8ccd0;cursor:pointer;color:#373a3c;background:#fff;user-select:none}
+.folder-toggle{padding:3px 10px;text-align:center;font-size:.9em;border-top:1px solid #c8ccd0;cursor:pointer;color:#373a3c;background:#fff;
+  list-style:none;user-select:none}
+.folder-toggle::-webkit-details-marker{display:none}
+.folder-toggle::marker{content:''}
 .folder-toggle:hover{background:#f6f7f8}
 .folder-body{border-top:1px solid #c8ccd0}
-.wiki-folder[data-open="0"]>.folder-body{display:none}
+details.wiki-sec{margin:0}
+details.wiki-sec>summary.wiki-heading{list-style:none;cursor:pointer}
+details.wiki-sec>summary.wiki-heading::-webkit-details-marker{display:none}
+details.wiki-sec>summary.wiki-heading::marker{content:''}
+details.wiki-sec>summary.wiki-heading:after{content:'[접기]';color:#0275d8;font-size:.62em;font-weight:400;margin-left:6px;vertical-align:middle}
+details.wiki-sec:not([open])>summary.wiki-heading:after{content:'[펼치기]'}
 .folder-table{width:100%;border:0;margin:0;font-size:1em}
 .folder-table td,.folder-table th{border:1px solid #e3e5e8;text-align:center;padding:5px 8px}
 [data-ph]:empty:before{content:attr(data-ph);color:#b6bcbf}
@@ -319,13 +335,6 @@ const FOLD_JS = `
     if(btn) btn.textContent=collapsed?'[펼치기]':'[접기]';
   }
   document.addEventListener('click',function(e){
-    var f=e.target.closest?e.target.closest('.folder-toggle'):null;
-    if(f){
-      e.preventDefault();
-      var box=f.closest('.wiki-folder');
-      box.setAttribute('data-open', box.getAttribute('data-open')==='1'?'0':'1');
-      return;
-    }
     var b=e.target.closest?e.target.closest('.fold-btn'):null;
     if(!b) return;
     e.preventDefault();
@@ -766,7 +775,7 @@ $('#btnLink').addEventListener('click',()=>{
   if(!bodyReady()) return;
   const sel=(savedRange&&!savedRange.collapsed)?savedRange.toString():'';
   dialog({title:'링크 넣기',
-    note:'주소를 비워두면 실제로 이동하지 않고 파란 글씨로 보이기만 합니다. 외부 링크는 초록색 아이콘과 함께 여기 적은 이름이 그대로 표시됩니다.',
+    note:'주소를 비워두면 실제로 이동하지 않고 파란 글씨로 보이기만 합니다. 외부 링크는 초록색으로 보입니다.',
     fields:[
       {key:'text',label:'보이는 이름',value:sel,ph:'외부 링크면 여기 적은 이름이 아이콘 옆에 표시됩니다'},
       {key:'url',label:'주소(선택)',value:'',ph:'another.html 또는 https://...'},
@@ -786,7 +795,7 @@ $('#btnLink').addEventListener('click',()=>{
 });
 
 /* 상세 내용 안내 (초록 화살표) */
-const DETAIL_ICON='<svg class="detail-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#1e9c4a" d="M4 3v8.5C4 15.6 7.3 19 11.4 19H16v3.2L22.5 17 16 11.8V15h-4.6C9.5 15 8 13.5 8 11.5V3H4z"/></svg>';
+const DETAIL_ICON='<span class="detail-icon"></span>';
 $('#btnDetail').addEventListener('click',()=>{
   if(!bodyReady()) return;
   dialog({title:'상세 내용 안내 넣기',
@@ -813,18 +822,19 @@ function folderHTML(title,bg,fg,R,C,open){
     for(let c=0;c<C;c++) rows+='<td><br></td>';
     rows+='</tr>';
   }
-  return '<div class="wiki-folder" data-open="'+(open?'1':'0')+'">'+
+  return '<div class="wiki-folder">'+
     '<div class="folder-head" style="background:'+escAttr(bg)+';color:'+escAttr(fg)+'">'+esc(title)+'</div>'+
-    '<div class="folder-toggle">[ 펼치기 · 접기 ]</div>'+
-    '<div class="folder-body"><table class="wiki-table folder-table"><tbody>'+rows+'</tbody></table></div>'+
-    '</div><p><br></p>';
+    '<details class="folder-det"'+(open?' open':'')+'>'+
+      '<summary class="folder-toggle">[ 펼치기 · 접기 ]</summary>'+
+      '<div class="folder-body"><table class="wiki-table folder-table"><tbody>'+rows+'</tbody></table></div>'+
+    '</details></div><p><br></p>';
 }
 $('#btnFolder').addEventListener('click',()=>{
   if(!bodyReady()) return;
   dialog({title:'접는 틀 넣기',okText:'틀 넣기',
-    note:'머리글을 누르는 게 아니라 아래의 <b>[ 펼치기 · 접기 ]</b> 줄을 눌러 여닫습니다. 안쪽 칸은 표 도구로 자유롭게 늘리고 줄일 수 있습니다.',
+    note:'아래의 <b>[ 펼치기 · 접기 ]</b> 줄을 눌러 여닫습니다. 안쪽 칸은 표 도구로 자유롭게 늘리고 줄일 수 있습니다.',
     fields:[
-      {key:'t',label:'머리글',value:'대한민국 국무총리 직속기관'},
+      {key:'t',label:'머리글',value:'제목'},
       {key:'bg',label:'머리글 배경',type:'color',value:'#13398f'},
       {key:'fg',label:'머리글 글자',type:'color',value:'#ffffff'},
       {key:'r',label:'행 수',type:'number',value:3,min:1,max:40},
@@ -856,9 +866,9 @@ $('#folderBar').addEventListener('click',e=>{
     head.style.background=bg; head.style.color=fg; toast('머리글 색을 바꿨습니다');
   }
   else if(a==='state'){
-    const open=box.getAttribute('data-open')==='1'?'0':'1';
-    box.setAttribute('data-open',open);
-    toast(open==='1'?'펼친 상태로 저장됩니다':'접힌 상태로 저장됩니다');
+    const det=box.querySelector('details'); if(!det) return;
+    det.open=!det.open;
+    toast(det.open?'펼친 상태로 저장됩니다':'접힌 상태로 저장됩니다');
   }
   else if(a==='del'){ confirmBox('이 접는 틀을 삭제합니다.',()=>{box.remove();lastFolder=null;updateBars();commit();}); return; }
   commit();
@@ -969,6 +979,76 @@ function cellsOfSelection(cell){
   const list=[...table.querySelectorAll('td,th')].filter(c=>{try{return r.intersectsNode(c);}catch(e){return false;}});
   return list.length?list:[cell];
 }
+function tableGrid(t){
+  const grid=[];
+  [...t.rows].forEach((row,r)=>{
+    grid[r]=grid[r]||[];
+    let c=0;
+    [...row.cells].forEach(cell=>{
+      while(grid[r][c]) c++;
+      const rs=cell.rowSpan||1, cs=cell.colSpan||1;
+      for(let i=0;i<rs;i++){
+        grid[r+i]=grid[r+i]||[];
+        for(let j=0;j<cs;j++) grid[r+i][c+j]=cell;
+      }
+      c+=cs;
+    });
+  });
+  return grid;
+}
+function mergeCells(){
+  const cells=(lastCells||[]).filter(c=>c.isConnected);
+  if(cells.length<2){toast('합칠 칸 두 개 이상을 드래그해 선택하세요');return false;}
+  const table=cells[0].closest('table'), grid=tableGrid(table);
+  let minR=1e9,maxR=-1,minC=1e9,maxC=-1;
+  for(let r=0;r<grid.length;r++)for(let c=0;c<(grid[r]||[]).length;c++){
+    if(cells.indexOf(grid[r][c])<0) continue;
+    minR=Math.min(minR,r);maxR=Math.max(maxR,r);minC=Math.min(minC,c);maxC=Math.max(maxC,c);
+  }
+  if(maxR<0) return false;
+  const rect=new Set();
+  for(let r=minR;r<=maxR;r++)for(let c=minC;c<=maxC;c++){const g=grid[r]&&grid[r][c]; if(g) rect.add(g);}
+  const keep=grid[minR][minC], parts=[];
+  rect.forEach(cell=>{
+    if(cell===keep) return;
+    const t=cell.innerHTML.replace(/<br\s*\/?>/gi,'').trim();
+    if(t) parts.push(t);
+    cell.remove();
+  });
+  if(parts.length){
+    const base=keep.innerHTML.replace(/<br\s*\/?>/gi,'').trim();
+    keep.innerHTML=(base?base+' ':'')+parts.join(' ');
+  }
+  keep.rowSpan=maxR-minR+1; keep.colSpan=maxC-minC+1;
+  lastCell=keep; lastCells=[keep];
+  return true;
+}
+function splitCell(cell){
+  const table=cell.closest('table'), grid=tableGrid(table);
+  let R=-1,C=-1;
+  for(let r=0;r<grid.length&&R<0;r++)for(let c=0;c<(grid[r]||[]).length;c++){
+    if(grid[r][c]===cell){R=r;C=c;break;}
+  }
+  const rs=cell.rowSpan||1, cs=cell.colSpan||1;
+  if(R<0||(rs===1&&cs===1)){toast('병합된 칸에 커서를 두세요');return false;}
+  cell.rowSpan=1; cell.colSpan=1;
+  const tag=cell.tagName.toLowerCase();
+  for(let r=R;r<R+rs;r++){
+    const row=table.rows[r]; if(!row) continue;
+    for(let c=C;c<C+cs;c++){
+      if(r===R&&c===C) continue;
+      const nc=document.createElement(tag); nc.innerHTML='<br>';
+      nc.style.backgroundColor=cell.style.backgroundColor||'';
+      let ref=null;
+      for(let cc=c+1;cc<(grid[r]||[]).length;cc++){
+        const g=grid[r][cc];
+        if(g&&g!==cell&&g.parentElement===row){ref=g;break;}
+      }
+      row.insertBefore(nc,ref);
+    }
+  }
+  return true;
+}
 function resizeTable(t,R,C){
   [...t.rows].forEach(row=>{
     while(row.cells.length>C) row.deleteCell(-1);
@@ -1025,6 +1105,10 @@ $('#tableBar').addEventListener('click',e=>{
     targets.forEach(c=>c.style.backgroundColor=color||'');
     toast(color?targets.length+'칸에 배경색을 넣었습니다':'배경색을 지웠습니다');
   }
+  else if(a==='merge'){ if(!mergeCells()) return; toast('칸을 합쳤습니다'); }
+  else if(a==='split'){ if(!splitCell(cell)) return; toast('병합을 해제했습니다'); }
+  else if(a==='alignC') cell.style.textAlign='center';
+  else if(a==='alignL') cell.style.textAlign='left';
   else if(a==='th'||a==='td'){
     const nc=document.createElement(a);
     nc.innerHTML=cell.innerHTML; nc.style.cssText=cell.style.cssText;
@@ -1077,12 +1161,55 @@ $('#wiki').addEventListener('paste',e=>{
   afterEdit();
 });
 
+function upgradeFolders(root){
+  (root||document).querySelectorAll('.wiki-folder[data-open]').forEach(box=>{
+    const tog=box.querySelector('.folder-toggle'), body=box.querySelector('.folder-body');
+    const wasOpen=box.getAttribute('data-open')==='1';
+    box.removeAttribute('data-open');
+    if(!tog||!body||tog.tagName==='SUMMARY') return;
+    const det=document.createElement('details'); det.className='folder-det';
+    if(wasOpen) det.setAttribute('open','');
+    const sum=document.createElement('summary'); sum.className='folder-toggle'; sum.textContent=tog.textContent;
+    det.appendChild(sum); det.appendChild(body); tog.remove(); box.appendChild(det);
+  });
+}
+
 /* =========================================================
    6) 내보내기
    ========================================================= */
+function sectionsToDetails(root){
+  const cont=root.querySelector('#sections'); if(!cont) return;
+  const items=[...cont.children].filter(n=>n.classList&&n.classList.contains('wiki-section'));
+  if(!items.length) return;
+  const holder=document.createElement('div'); holder.id='sections';
+  const stack=[{lv:0,el:holder}];
+  items.forEach(sec=>{
+    const lv=+sec.dataset.level||1;
+    const det=document.createElement('details');
+    det.className='wiki-sec'; det.setAttribute('data-level',lv);
+    if(!sec.classList.contains('collapsed')) det.setAttribute('open','');
+    const sum=document.createElement('summary');
+    sum.className='wiki-heading'; sum.setAttribute('data-level',lv);
+    const h=sec.querySelector('.wiki-heading');
+    if(h) [...h.childNodes].forEach(n=>sum.appendChild(n.cloneNode(true)));
+    det.appendChild(sum);
+    const body=sec.querySelector('.section-body');
+    if(body) det.appendChild(body.cloneNode(true));
+    while(stack.length>1 && stack[stack.length-1].lv>=lv) stack.pop();
+    stack[stack.length-1].el.appendChild(det);
+    stack.push({lv,el:det});
+  });
+  cont.replaceWith(holder);
+}
 function cleanClone(){
   const c=$('#wiki').cloneNode(true);
   c.querySelectorAll('.editor-only').forEach(n=>n.remove());
+  c.querySelectorAll('.fold-btn,button').forEach(n=>n.remove());
+  c.querySelectorAll('svg.detail-icon').forEach(sv=>{
+    const sp=document.createElement('span'); sp.className='detail-icon'; sv.replaceWith(sp);
+  });
+  c.querySelectorAll('svg').forEach(n=>n.remove());
+  c.querySelectorAll('.wiki-section,.section-body').forEach(n=>{n.style.display='';});
   c.querySelectorAll('[contenteditable]').forEach(n=>n.removeAttribute('contenteditable'));
   c.querySelectorAll('[data-ph]').forEach(n=>n.removeAttribute('data-ph'));
   c.querySelectorAll('[spellcheck]').forEach(n=>n.removeAttribute('spellcheck'));
@@ -1094,21 +1221,22 @@ function cleanClone(){
   drop('#preamble',el=>!el.textContent.trim()&&!el.querySelector('img,table'));
   drop('#footnotes',el=>!el.innerHTML.trim());
   if(!c.querySelector('.toc-item')){const t=c.querySelector('#tocBox');t&&t.remove();}
+  sectionsToDetails(c);
   return c;
 }
 function exportHTML(full){
   const inner=cleanClone().outerHTML;
-  const script='<scr'+'ipt>'+FOLD_JS+'</scr'+'ipt>';
-  if(!full) return '<style>'+WIKI_CSS+'</style>\n'+inner+'\n'+script;
+  if(!full) return '<style>'+WIKI_CSS+'</style>\n'+inner;
   const title=($('#docTitle').textContent.trim())||(SECS()[0]?SECS()[0].querySelector('.head-title').textContent:'깡통위키 문서');
   return '<!DOCTYPE html>\n<html lang="ko">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>'+
     esc(title)+'</title>\n<style>\nbody{margin:0;background:#f2f2f2}\n.page{max-width:1000px;margin:0 auto;background:#fff;padding:26px 30px 40px;min-height:100vh}\n'+
-    WIKI_CSS+'</style>\n</head>\n<body>\n<div class="page">\n'+inner+'\n</div>\n'+script+'\n</body>\n</html>';
+    WIKI_CSS+'</style>\n</head>\n<body>\n<div class="page">\n'+inner+'\n</div>\n</body>\n</html>';
 }
 $('#btnHtml').addEventListener('click',()=>{
   openModal('HTML 코드',
     '<div class="radios"><label><input type="radio" name="ex" value="full" checked> 완성된 HTML 문서</label>'+
-    '<label><input type="radio" name="ex" value="part"> 본문 조각 (블로그 붙여넣기용)</label></div>'+
+    '<label><input type="radio" name="ex" value="part"> 본문 조각 (커뮤니티·블로그 붙여넣기용)</label></div>'+
+    '<p class="note">스크립트·SVG·버튼 없이 만들어져서 글꾸 규칙이 엄격한 곳에도 그대로 붙여넣을 수 있습니다. 문단 접기와 틀 접기는 details 태그로 동작합니다.</p>'+
     '<textarea id="exArea" spellcheck="false" readonly></textarea>',
     '<button class="btn" onclick="closeModal()">닫기</button><button class="btn" id="exDown">HTML 파일로 저장</button><button class="btn primary" id="exCopy">코드 복사</button>');
   const fill=()=>{$('#exArea').value=exportHTML(document.querySelector('input[name=ex]:checked').value==='full');};
@@ -1169,6 +1297,7 @@ $('#jsonInput').addEventListener('change',e=>{
     if(!d||typeof d.html!=='string'){toast('이 생성기의 저장 파일이 아닙니다');return;}
     confirmBox('불러오면 지금 작업 중인 내용이 사라집니다. 계속할까요?',()=>{
       $('#wiki').innerHTML=d.html;
+      upgradeFolders($('#wiki'));
       if(document.body.classList.contains('preview')) $('#btnPreview').click();
       savedRange=null;lastEditable=null;selImg=null;lastCell=null;lastCells=[];lastFolder=null;
       renumber(); renderFootnotes(); updateBars(); commit();
