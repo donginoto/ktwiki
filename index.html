@@ -651,7 +651,7 @@ $('#btnAddTop').addEventListener('click',()=>{
 });
 
 /* =========================================================
-   4) 목차 생성 / 편집
+   4) 목차 생성 / 편집 
    ========================================================= */
 function currentOutlineText(){
   return SECS().map(s=>'  '.repeat(+s.dataset.level-1)+s.querySelector('.head-title').textContent).join('\n');
