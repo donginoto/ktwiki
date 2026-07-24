@@ -62,6 +62,14 @@ body.capturing [contenteditable]{outline:none!important}
 .frow{display:flex;gap:10px;align-items:center;margin:9px 0;font-size:13px}
 .frow>label{flex:0 0 108px;color:#5d6669}
 .frow>input[type=text],.frow>textarea,.frow>select{flex:1}
+#shotVeil{position:fixed;inset:0;z-index:500;background:#e8eaed;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:18px 0}
+#shot{width:430px;background:#fff;padding:22px 18px;box-sizing:border-box}
+#shot .fold-btn{display:none}
+#shot .wiki-body{font-size:15px}
+#shot .wiki-toc{min-width:0;width:100%;padding-right:12px}
+#shot .wiki-title{font-size:1.7em}
+#shot .wiki-table{display:table;width:100%;font-size:.88em}
+#shot .wiki-table td,#shot .wiki-table th{padding:4px 6px;word-break:break-word;min-width:0}
 .filemenu{display:grid;gap:8px}
 .fileitem{display:block;width:100%;text-align:left;padding:13px 14px;border:1px solid #d5dadd;border-radius:6px;background:#fff;cursor:pointer;font-family:inherit}
 .fileitem:hover{background:#f4f6f7;border-color:#aab2b6}
@@ -1170,16 +1178,50 @@ $('#jsonInput').addEventListener('change',e=>{
   rd.readAsText(f);
 });
 
-$('#btnPng').addEventListener('click',async()=>{
-  document.body.classList.add('capturing');
-  if(selImg) selImg.classList.remove('sel');
+function pngFailBox(msg){
+  openModal('이미지로 저장','<p class="note" style="font-size:13px;color:#2b2f31">'+msg+'</p>',
+    '<button class="btn primary" onclick="closeModal()">닫기</button>');
+}
+function showPngResult(canvas){
+  const name=($('#docTitle').textContent.trim()||'깡통위키문서').replace(/[\\/:*?"<>|]/g,'_');
+  const finish=url=>{
+    openModal('이미지로 저장',
+      '<p class="note">아래 <b>내려받기</b>를 누르면 저장됩니다. 버튼이 막힌 환경(미리보기 창 등)이라면 그림을 길게 누르거나 오른쪽 버튼으로 눌러 저장하세요.</p>'+
+      '<img src="'+url+'" alt="문서 이미지" style="max-width:100%;display:block;border:1px solid #d5dadd">',
+      '<button class="btn" onclick="closeModal()">닫기</button>'+
+      '<a class="btn primary" href="'+url+'" download="'+escAttr(name)+'.png" style="text-decoration:none">내려받기</a>');
+  };
   try{
-    const canvas=await html2canvas($('#wiki'),{backgroundColor:'#ffffff',scale:2,useCORS:true,logging:false});
-    const a=document.createElement('a');
-    a.href=canvas.toDataURL('image/png'); a.download='wiki.png'; a.click();
-    toast('이미지를 저장했습니다');
-  }catch(err){console.error(err);toast('이미지 저장에 실패했습니다');}
-  finally{document.body.classList.remove('capturing'); if(selImg)selImg.classList.add('sel');}
+    if(canvas.toBlob) canvas.toBlob(b=>finish(b?URL.createObjectURL(b):canvas.toDataURL('image/png')),'image/png');
+    else finish(canvas.toDataURL('image/png'));
+  }catch(err){ finish(canvas.toDataURL('image/png')); }
+}
+$('#btnPng').addEventListener('click',async()=>{
+  if(typeof html2canvas!=='function'){
+    pngFailBox('이미지 변환 도구(html2canvas)를 불러오지 못했습니다. 인터넷이 끊겼거나 미리보기 창이 외부 파일을 막는 경우입니다.<br>HTML 파일을 내려받아 브라우저에서 직접 열면 정상 동작합니다.');
+    return;
+  }
+  const veil=document.createElement('div'); veil.id='shotVeil';
+  const shot=document.createElement('div'); shot.id='shot';
+  const doc=cleanClone();
+  doc.removeAttribute('id');
+  doc.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));
+  shot.appendChild(doc); veil.appendChild(shot); document.body.appendChild(veil);
+  toast('모바일 화면 폭으로 이미지를 만드는 중…');
+  let canvas=null;
+  try{
+    await new Promise(r=>setTimeout(r,180));
+    canvas=await html2canvas(shot,{backgroundColor:'#ffffff',scale:2,useCORS:true,logging:false,
+      width:shot.offsetWidth,height:shot.offsetHeight,scrollX:0,scrollY:0});
+  }catch(err){
+    console.error(err);
+    veil.remove();
+    pngFailBox('이미지를 만들지 못했습니다.<br>오류 내용: '+esc(String((err&&err.message)||err)));
+    return;
+  }
+  veil.remove();
+  if(!canvas||!canvas.width){ pngFailBox('빈 이미지가 만들어졌습니다. 문서에 내용이 있는지 확인해 주세요.'); return; }
+  showPngResult(canvas);
 });
 $('#btnPreview').addEventListener('click',()=>{
   const on=document.body.classList.toggle('preview');
