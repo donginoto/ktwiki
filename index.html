@@ -1,659 +1,866 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>나무위키 스타일 문서 생성기</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XX위키 스타일 문서 생성기</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
-  :root{
-    --nw-teal:#00a495;
-    --nw-text:#222325;
-    --nw-sub:#555;
-    --nw-border:#e5e5e5;
-    --nw-border-dark:#ccc;
-    --nw-link:#3b5aa9;
-    --nw-bg:#ffffff;
-    --nw-toc-bg:#fafafa;
-    --toolbar-bg:#2d2f34;
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;background:#f3f3f3;color:var(--nw-text);
-    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif;}
-
-  /* ===== toolbar ===== */
-  #toolbar{
-    position:sticky;top:0;z-index:50;background:var(--toolbar-bg);
-    display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;align-items:center;
-  }
-  #toolbar button, #toolbar select{
-    background:#3f4147;color:#f1f1f1;border:1px solid #55575d;border-radius:4px;
-    padding:6px 10px;font-size:13px;cursor:pointer;white-space:nowrap;
-  }
-  #toolbar button:hover{background:var(--nw-teal);border-color:var(--nw-teal);}
-  #toolbar button:active{transform:translateY(1px);}
-  #toolbar .sep{width:1px;height:22px;background:#55575d;margin:0 2px;}
-  #toolbar .grow{flex:1;}
-  #toolbar .primary{background:var(--nw-teal);border-color:var(--nw-teal);font-weight:600;}
-  #toolbar .primary:hover{filter:brightness(1.1);}
-
-  /* ===== page shell ===== */
-  #page-wrap{max-width:920px;margin:20px auto 60px;background:var(--nw-bg);
-    box-shadow:0 0 0 1px #ddd;}
-  #capture-area{padding:28px 32px 40px;}
-
-  #doc-title{
-    font-size:42px;font-weight:800;border-bottom:4px solid var(--nw-text);
-    padding-bottom:12px;margin:0 0 4px;outline:none;line-height:1.25;
-  }
-  #doc-subtitle{font-size:12px;color:#999;margin:0 0 18px;}
-
-  /* toc */
-  #toc-box{
-    float:right;clear:right;background:var(--nw-toc-bg);border:1px solid var(--nw-border-dark);
-    padding:10px 14px;margin:0 0 16px 16px;font-size:13.5px;min-width:200px;max-width:280px;
-    display:none;
-  }
-  #toc-box .toc-title{font-weight:700;text-align:center;border-bottom:1px solid var(--nw-border-dark);
-    padding-bottom:6px;margin-bottom:6px;}
-  #toc-box ol{margin:0;padding-left:18px;list-style:none;}
-  #toc-box ol ol{padding-left:14px;font-size:13px;}
-  #toc-box li{margin:3px 0;}
-  #toc-box a{color:var(--nw-link);text-decoration:none;}
-
-  /* body content, contenteditable */
-  #doc-body{
-    font-size:15px;line-height:1.75;min-height:300px;outline:none;
-  }
-  #doc-body h2, #doc-body h3, #doc-body h4{
-    font-weight:700;border-bottom:1px solid var(--nw-border);
-    margin:28px 0 10px;padding-bottom:6px;clear:both;
-  }
-  #doc-body h2{font-size:21px;}
-  #doc-body h3{font-size:18.5px;border-bottom:none;}
-  #doc-body h4{font-size:16.5px;border-bottom:none;color:#333;}
-  #doc-body .hnum{color:inherit;margin-right:2px;user-select:none;}
-  #doc-body p{margin:0 0 12px;}
-  #doc-body a{color:var(--nw-link);text-decoration:none;}
-  #doc-body a:hover{text-decoration:underline;}
-  #doc-body del{text-decoration:line-through;color:#888;}
-  #doc-body b, #doc-body strong{font-weight:700;}
-  #doc-body .fake-link{color:var(--nw-link);cursor:pointer;}
-  #doc-body .fake-link:hover{text-decoration:underline;}
-  #doc-body blockquote.wiki-quote{
-    margin:14px 0;padding:10px 16px;border-left:4px solid var(--nw-teal);
-    background:#f7f9f9;color:#444;font-size:14.5px;
-  }
-  #doc-body blockquote.wiki-quote p{margin:0;}
-  #doc-body .wiki-fn{
-    font-size:11px;color:var(--nw-teal);cursor:default;font-weight:600;
-    vertical-align:super;line-height:0;margin-left:1px;
-  }
-  #doc-body ul, #doc-body ol{margin:0 0 12px;padding-left:24px;}
-  #doc-body hr{border:none;border-top:1px solid var(--nw-border-dark);margin:20px 0;}
-  #doc-body img{max-width:100%;display:block;margin:12px 0;}
-  #doc-body table{border-collapse:collapse;margin:14px 0;}
-  #doc-body table.doc-table td, #doc-body table.doc-table th{
-    border:1px solid #ccc;padding:7px 12px;min-width:40px;
-  }
-  #doc-body table.doc-table th{background:#f2f2f2;font-weight:700;}
-
-  /* footnotes */
-  #footnote-box{margin-top:36px;clear:both;}
-  #footnote-box hr{border:none;border-top:1px solid var(--nw-border-dark);margin-bottom:10px;}
-  #footnote-box ol{font-size:12.5px;color:var(--nw-sub);padding-left:20px;margin:0;}
-  #footnote-box li{margin:4px 0;}
-  #footnote-box.empty{display:none;}
-
-  #wiki-footer{
-    margin-top:30px;padding-top:14px;border-top:1px solid var(--nw-border);
-    font-size:11px;color:#aaa;clear:both;
-  }
-
-  /* modals */
-  .modal-backdrop{
-    position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;
-    align-items:center;justify-content:center;z-index:100;
-  }
-  .modal-box{background:#fff;padding:18px;border-radius:6px;width:min(90vw,420px);}
-  .modal-box h4{margin:0 0 8px;font-size:14px;}
-  .modal-box textarea{width:100%;min-height:80px;font-size:13px;padding:8px;
-    border:1px solid #ccc;border-radius:4px;resize:vertical;font-family:inherit;}
-  .modal-box .fn-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px;}
-  .modal-box button{padding:6px 14px;font-size:13px;border-radius:4px;border:1px solid #ccc;cursor:pointer;background:#f5f5f5;}
-  .modal-box button.confirm{background:var(--nw-teal);border-color:var(--nw-teal);color:#fff;}
-  #colorHex{flex:1;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-size:13px;}
-  #colorPicker{width:44px;height:34px;border:1px solid #ccc;border-radius:4px;padding:0;cursor:pointer;}
-
-  #toast{
-    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
-    background:#222;color:#fff;padding:10px 18px;border-radius:6px;font-size:13px;
-    opacity:0;pointer-events:none;transition:.25s;z-index:200;
-  }
-  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-
-  @media (max-width:640px){
-    #capture-area{padding:18px 16px 30px;}
-    #doc-title{font-size:28px;}
-    #toc-box{float:none;max-width:none;margin:0 0 16px;}
-    #toolbar button, #toolbar select{padding:6px 8px;font-size:12px;}
-  }
+/* ============ 에디터 껍데기(문서에는 포함되지 않음) ============ */
+*{box-sizing:border-box}
+body{margin:0;background:#e8eaed;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#2b2f31}
+#appbar{position:sticky;top:0;z-index:60;background:#2d3436;color:#fff;padding:8px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#appbar h1{font-size:14px;margin:0;font-weight:700;letter-spacing:-.2px;opacity:.95}
+#appbar .spacer{flex:1}
+.btn{font-family:inherit;font-size:12.5px;line-height:1;padding:7px 10px;border:1px solid #c9ced1;background:#fff;color:#2b2f31;border-radius:4px;cursor:pointer}
+.btn:hover{background:#f4f6f7}
+.btn:active{transform:translateY(1px)}
+.btn.dark{background:#454f52;border-color:#5c686c;color:#fff}
+.btn.dark:hover{background:#556065}
+.btn.primary{background:#0275d8;border-color:#0275d8;color:#fff}
+.btn.primary:hover{background:#0269c2}
+#toolbar{position:sticky;top:37px;z-index:55;background:#fff;border-bottom:1px solid #d5dadd;padding:6px 10px;display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+#toolbar .sep{width:1px;height:20px;background:#dfe4e6;margin:0 4px}
+#toolbar .grp{font-size:11px;color:#8a9296;margin-right:2px}
+.bar{background:#fbfcfc;border:1px solid #d5dadd;border-radius:4px;padding:8px 10px;margin:0 0 10px;display:none;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px}
+.bar.on{display:flex}
+.bar b{font-size:12px;color:#5d6669;margin-right:2px}
+input[type=text],input[type=number],select,textarea{font-family:inherit;font-size:12.5px;padding:6px 7px;border:1px solid #c9ced1;border-radius:4px;background:#fff;color:#2b2f31}
+input[type=number]{width:62px}
+#stage{max-width:1080px;margin:16px auto 90px;padding:0 12px}
+#paper{background:#fff;border:1px solid #d5dadd;border-radius:3px;padding:26px 30px 34px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.hint{font-size:12px;color:#8a9296;margin:0 0 8px;line-height:1.6}
+[contenteditable="true"]:focus{outline:2px solid rgba(2,117,216,.35);outline-offset:2px;border-radius:2px}
+.head-tools{float:right;opacity:.15;transition:opacity .12s}
+.wiki-heading:hover .head-tools{opacity:1}
+.head-tools button{font-family:inherit;font-size:11px;line-height:1;padding:3px 5px;margin-left:2px;border:1px solid #d5dadd;background:#fff;color:#5d6669;border-radius:3px;cursor:pointer}
+.head-tools button:hover{background:#eef1f2;color:#2b2f31}
+.fold-btn{font-family:inherit;font-size:11.5px;padding:0;margin-left:6px;border:0;background:none;color:#0275d8;cursor:pointer;vertical-align:middle}
+.fold-btn:hover{text-decoration:underline}
+.wiki-img.sel{outline:2px solid #0275d8;outline-offset:1px}
+body.preview .editor-only{display:none!important}
+body.capturing .editor-only,body.capturing .fold-btn{display:none!important}
+body.capturing [contenteditable]{outline:none!important}
+/* 모달 */
+#veil{position:fixed;inset:0;background:rgba(20,24,26,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+#veil.on{display:flex}
+.modal{background:#fff;border-radius:6px;width:min(760px,100%);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.modal header{padding:12px 16px;border-bottom:1px solid #e3e7e9;font-weight:700;font-size:14px}
+.modal .body{padding:14px 16px;overflow:auto}
+.modal footer{padding:10px 16px;border-top:1px solid #e3e7e9;display:flex;gap:6px;justify-content:flex-end;background:#fafbfb}
+.modal textarea{width:100%;min-height:260px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.6;resize:vertical}
+.modal textarea.small{min-height:84px;font-family:inherit;font-size:13px}
+.modal .note{font-size:12px;color:#7d868a;line-height:1.7;margin:0 0 12px}
+.frow{display:flex;gap:10px;align-items:center;margin:9px 0;font-size:13px}
+.frow>label{flex:0 0 108px;color:#5d6669}
+.frow>input[type=text],.frow>textarea,.frow>select{flex:1}
+.radios{display:flex;gap:14px;font-size:12.5px;margin-bottom:8px}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#2d3436;color:#fff;font-size:13px;padding:9px 16px;border-radius:20px;opacity:0;pointer-events:none;transition:.18s;z-index:200}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (max-width:640px){#paper{padding:18px 14px 26px}#toolbar{top:57px}}
 </style>
+<style id="wikiStyle"></style>
 </head>
 <body>
 
+<div id="appbar">
+  <h1>XX위키 스타일 문서 생성기</h1>
+  <div class="spacer"></div>
+  <button class="btn dark" id="btnOutline">목차 생성 / 편집</button>
+  <button class="btn dark" id="btnPreview">보기 모드</button>
+  <button class="btn dark" id="btnHtml">HTML 코드</button>
+  <button class="btn primary" id="btnPng">이미지로 저장</button>
+</div>
+
 <div id="toolbar">
-  <select id="headingSelect" title="문단 스타일">
-    <option value="P">본문</option>
-    <option value="H2">1단계 문단</option>
-    <option value="H3">2단계 문단</option>
-    <option value="H4">3단계 문단</option>
-  </select>
-  <div class="sep"></div>
-  <button id="btnBold"><b>B</b> 볼드</button>
-  <button id="btnStrike"><s>취소선</s></button>
-  <button id="btnFakeLink">가짜 링크</button>
-  <button id="btnQuote">인용구</button>
-  <button id="btnFootnote">각주</button>
-  <button id="btnHr">구분선</button>
-  <div class="sep"></div>
-  <button id="btnInsertImage">사진 삽입</button>
-  <button id="btnInsertTable">표 삽입</button>
-  <button id="btnTableColor">표 배경색</button>
-  <div class="sep"></div>
-  <button id="btnToc">목차 생성</button>
-  <button id="btnTocApply">목차 반영</button>
-  <div class="grow"></div>
-  <button id="btnCopy" class="primary">HTML 복사</button>
-  <button id="btnSaveImage" class="primary">이미지 저장</button>
+  <span class="grp">글자</span>
+  <button class="btn" data-cmd="bold" title="굵게 (Ctrl+B)"><b>B</b></button>
+  <button class="btn" data-cmd="italic" title="기울임 (Ctrl+I)"><i>I</i></button>
+  <button class="btn" data-cmd="underline" title="밑줄 (Ctrl+U)"><u>U</u></button>
+  <button class="btn" data-cmd="strikeThrough" title="취소선"><s>S</s></button>
+  <input type="text" id="colorHex" value="#ff0000" size="7" title="글자 색 헥스코드">
+  <button class="btn" id="btnColor" title="선택한 글자에 색 적용">색 적용</button>
+  <span class="sep"></span>
+  <span class="grp">문단</span>
+  <button class="btn" id="btnQuote">인용구</button>
+  <button class="btn" data-cmd="insertUnorderedList">• 목록</button>
+  <button class="btn" data-cmd="insertOrderedList">1. 목록</button>
+  <button class="btn" id="btnHr">구분선</button>
+  <button class="btn" data-cmd="justifyLeft">좌</button>
+  <button class="btn" data-cmd="justifyCenter">중</button>
+  <button class="btn" data-cmd="justifyRight">우</button>
+  <span class="sep"></span>
+  <span class="grp">삽입</span>
+  <button class="btn" id="btnFn">주석</button>
+  <button class="btn" id="btnLink">링크</button>
+  <button class="btn" id="btnDetail">상세 내용 안내</button>
+  <button class="btn" id="btnImage">사진</button>
+  <button class="btn" id="btnTable">표</button>
+  <span class="sep"></span>
+  <button class="btn" id="btnClear" title="서식 지우기">서식 지우기</button>
 </div>
 
-<input type="file" id="imgFileInput" accept="image/*" style="display:none">
+<div id="stage">
 
-<div id="page-wrap">
-  <div id="capture-area">
-    <div id="doc-title" contenteditable="true">문서 제목</div>
-    <div id="doc-subtitle">최근 수정 시각: 2026-07-12</div>
+  <div class="bar" id="tableBar">
+    <b>표</b>
+    <button class="btn" data-t="rowAbove">위에 행 추가</button>
+    <button class="btn" data-t="rowBelow">아래에 행 추가</button>
+    <button class="btn" data-t="rowDel">행 삭제</button>
+    <button class="btn" data-t="colLeft">왼쪽에 열 추가</button>
+    <button class="btn" data-t="colRight">오른쪽에 열 추가</button>
+    <button class="btn" data-t="colDel">열 삭제</button>
+    <span class="sep"></span>
+    <b>배경</b>
+    <input type="text" id="cellHex" value="#f5f5f5" size="8" placeholder="#f5f5f5">
+    <select id="bgScope">
+      <option value="cell">이 칸</option>
+      <option value="row">이 행</option>
+      <option value="col">이 열</option>
+      <option value="table">표 전체</option>
+    </select>
+    <button class="btn" data-t="bg">배경색 적용</button>
+    <button class="btn" data-t="bgClear">배경 지우기</button>
+    <span class="sep"></span>
+    <button class="btn" data-t="th">제목칸으로</button>
+    <button class="btn" data-t="td">일반칸으로</button>
+    <button class="btn" data-t="alignL">좌</button>
+    <button class="btn" data-t="alignC">중</button>
+    <button class="btn" data-t="alignR">우</button>
+    <button class="btn" data-t="tableDel">표 삭제</button>
+  </div>
 
-    <div id="toc-box">
-      <div class="toc-title">목차</div>
-      <ol id="toc-list"></ol>
+  <div class="bar" id="imgBar">
+    <b>사진</b>
+    <label>너비 <input type="number" id="imgW" min="5" max="100" step="5" value="60">%</label>
+    <button class="btn" data-i="apply">적용</button>
+    <button class="btn" data-i="left">왼쪽</button>
+    <button class="btn" data-i="center">가운데</button>
+    <button class="btn" data-i="right">오른쪽</button>
+    <button class="btn" data-i="caption">설명 추가</button>
+    <button class="btn" data-i="del">사진 삭제</button>
+  </div>
+
+  <p class="hint editor-only">문서 제목·분류·서두·목차·본문을 클릭해 바로 입력하세요. 목차와 본문 제목은 서로 연동됩니다.</p>
+
+  <div id="paper">
+    <div id="wiki" class="wiki-body">
+      <h1 id="docTitle" class="wiki-title" contenteditable="true" spellcheck="false" data-ph="문서 제목"></h1>
+      <div id="catLine" class="wiki-cat"><span class="cat-label">분류: </span><span id="catBody" class="cat-body" contenteditable="true" spellcheck="false" data-ph="분류 내용"></span></div>
+      <div id="preamble" class="wiki-para" contenteditable="true" data-ph="목차 앞에 들어갈 서두를 입력하세요."></div>
+      <div id="tocBox" class="wiki-toc">
+        <div class="toc-title">목차</div>
+        <div id="tocList"></div>
+      </div>
+      <div id="sections"></div>
+      <div id="footnotes" class="footnote-area"></div>
     </div>
-
-    <div id="doc-body" contenteditable="true">
-      <p>여기에 개요/도입부 텍스트를 입력하세요. 이 문단은 목차보다 앞에 위치하며, 아래 첫 소제목 앞에 자동으로 목차가 삽입됩니다.</p>
-      <h2>개요</h2>
-      <p>단락 텍스트를 자유롭게 작성하고, 소제목은 툴바의 문단 스타일에서 선택하세요. 번호는 자동으로 매겨집니다.</p>
-      <blockquote class="wiki-quote"><p>인용구는 이렇게 표시됩니다.</p></blockquote>
-      <h2>특징</h2>
-      <p>여기에 내용을 입력하세요.</p>
+    <div class="editor-only" style="margin-top:18px">
+      <button class="btn" id="btnAddTop">＋ 최상위 문단 추가</button>
     </div>
-
-    <div id="footnote-box" class="empty">
-      <hr>
-      <ol id="footnote-list"></ol>
-    </div>
-
-    <div id="wiki-footer">이 문서는 나무위키 스타일 생성기로 제작되었습니다.</div>
   </div>
 </div>
 
-<div id="fn-modal-backdrop" class="modal-backdrop">
-  <div id="fn-modal" class="modal-box">
-    <h4>각주 내용 입력</h4>
-    <textarea id="fn-input" placeholder="각주로 표시할 내용을 입력하세요"></textarea>
-    <div class="fn-actions">
-      <button id="fnCancel">취소</button>
-      <button id="fnConfirm" class="confirm">삽입</button>
-    </div>
-  </div>
-</div>
-
-<div id="color-modal-backdrop" class="modal-backdrop">
-  <div id="color-modal" class="modal-box">
-    <h4>표 배경색 설정</h4>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <input type="color" id="colorPicker" value="#ffffff">
-      <input type="text" id="colorHex" placeholder="#RRGGBB" maxlength="7">
-    </div>
-    <div class="fn-actions">
-      <button id="colorCancel">취소</button>
-      <button id="colorConfirm" class="confirm">적용</button>
-    </div>
-  </div>
-</div>
-
+<div id="veil"><div class="modal" id="modal"></div></div>
 <div id="toast"></div>
+<input type="file" id="fileInput" accept="image/*" style="display:none">
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
+/* =========================================================
+   1) 문서 스타일 — 에디터와 내보내기 결과물이 동일하게 사용
+   ========================================================= */
+const WIKI_CSS = `
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.css');
+.wiki-body{
+  font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,Roboto,'Segoe UI','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;
+  font-size:16px;line-height:1.72;color:#373a3c;background:#fff;
+  word-break:break-word;-webkit-text-size-adjust:100%;
+}
+.wiki-body a{color:#0275d8;text-decoration:none}
+.wiki-body a:hover{text-decoration:underline}
+.wiki-body .fake-link{color:#0275d8;cursor:pointer}
+.wiki-body .fake-link:hover{text-decoration:underline}
+.wiki-body .fake-link.red,.wiki-body a.red{color:#ff0000}
+.wiki-title{font-size:1.95em;font-weight:700;line-height:1.35;margin:0 0 3px;color:#373a3c;letter-spacing:-.4px}
+.wiki-cat{font-size:.88em;color:#373a3c;margin:0 0 14px;line-height:1.6}
+.wiki-cat .cat-body{color:#0275d8}
+.wiki-para{margin:0 0 6px;min-height:1.72em}
+.wiki-detail{margin:8px 0 8px 2px;line-height:1.7}
+.detail-icon{vertical-align:-3px;margin-right:4px}
+.wiki-toc{display:inline-block;min-width:280px;max-width:100%;border:1px solid #e0e0e0;background:#fff;
+  padding:10px 24px 10px 12px;margin:14px 0 22px;border-radius:2px;font-size:15px;line-height:1.6}
+.toc-title{font-weight:700;font-size:16px;margin-bottom:4px;color:#373a3c}
+.toc-item{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.toc-num{color:#0275d8;margin-right:3px}
+.toc-text{color:#0275d8;cursor:text}
+.wiki-section{margin:0}
+.wiki-heading{font-weight:700;color:#373a3c;margin:22px 0 6px;padding-bottom:4px;border-bottom:1px solid #e0e0e0;line-height:1.5}
+.wiki-heading[data-level="1"]{font-size:1.55em}
+.wiki-heading[data-level="2"]{font-size:1.35em}
+.wiki-heading[data-level="3"]{font-size:1.2em}
+.wiki-heading[data-level="4"]{font-size:1.1em}
+.wiki-heading[data-level="5"]{font-size:1.04em}
+.wiki-heading[data-level="6"]{font-size:1em}
+.head-num{margin-right:5px}
+.head-title{cursor:text}
+.edit-link{display:none;font-size:.62em;font-weight:400;color:#0275d8;margin-left:6px;vertical-align:middle}
+.show-edit .edit-link{display:inline}
+.section-body{margin:0 0 10px;padding-top:2px}
+.wiki-quote{border-left:3px solid #e0e0e0;padding:2px 0 2px 12px;margin:8px 0;color:#373a3c}
+.wiki-hr{border:0;border-top:1px solid #e0e0e0;margin:14px 0}
+.wiki-table{border-collapse:collapse;border:2px solid #d0d0d0;margin:10px 0;font-size:.96em;max-width:100%}
+.wiki-table td,.wiki-table th{border:1px solid #d0d0d0;padding:5px 9px;vertical-align:middle;min-width:44px}
+.wiki-table th{background:#f2f2f2;font-weight:700;text-align:center}
+.wiki-img{max-width:100%;height:auto;vertical-align:middle}
+.img-block{margin:8px 0}
+.img-block.img-center{text-align:center}
+.img-block.img-right{text-align:right}
+.img-cap{font-size:.85em;color:#888;margin-top:2px}
+.fn-ref{color:#0275d8;font-size:.86em;cursor:help;white-space:nowrap}
+.footnote-area{margin-top:26px;border-top:1px solid #e0e0e0;padding-top:10px;font-size:.9em;line-height:1.7}
+.fn-item{margin:1px 0}
+.fn-no{color:#0275d8;margin-right:4px}
+.wiki-section.collapsed>.wiki-heading{border-bottom-style:dashed}
+[data-ph]:empty:before{content:attr(data-ph);color:#b6bcbf}
+`;
+document.getElementById('wikiStyle').textContent = WIKI_CSS;
+
+/* 접기/펼치기 — 에디터와 내보낸 HTML이 같은 코드를 사용 */
+const FOLD_JS = `
 (function(){
-  const docBody = document.getElementById('doc-body');
-  let savedRange = null;
-  let headingIdSeed = 0;
-
-  function saveSelection(){
-    const sel = window.getSelection();
-    if(sel && sel.rangeCount > 0){
-      const r = sel.getRangeAt(0);
-      if(docBody.contains(r.commonAncestorContainer)){
-        savedRange = r.cloneRange();
-      }
+  function toggle(sec){
+    var lv=parseInt(sec.getAttribute('data-level'),10);
+    var collapsed=sec.classList.toggle('collapsed');
+    var body=sec.querySelector(':scope > .section-body');
+    if(body) body.style.display=collapsed?'none':'';
+    var n=sec.nextElementSibling;
+    while(n && n.classList.contains('wiki-section') && parseInt(n.getAttribute('data-level'),10)>lv){
+      n.style.display=collapsed?'none':'';
+      n=n.nextElementSibling;
     }
+    var btn=sec.querySelector(':scope > .wiki-heading > .fold-btn');
+    if(btn) btn.textContent=collapsed?'[펼치기]':'[접기]';
   }
-  function restoreSelection(){
-    if(!savedRange) return;
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(savedRange);
+  document.addEventListener('click',function(e){
+    var b=e.target.closest?e.target.closest('.fold-btn'):null;
+    if(!b) return;
+    e.preventDefault();
+    toggle(b.closest('.wiki-section'));
+  });
+})();`;
+(function(){const s=document.createElement('script');s.textContent=FOLD_JS;document.body.appendChild(s);})();
+
+/* =========================================================
+   2) 기본 도구
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const escAttr = t => esc(t).replace(/"/g,'&quot;');
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),1900);}
+function hex(v){v=(v||'').trim();if(!v)return null;if(v[0]!=='#')v='#'+v;return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v)?v:null;}
+
+/* --- 모달 (브라우저 기본 prompt/confirm 대신 사용) --- */
+function openModal(title,bodyHTML,footerHTML){
+  $('#modal').innerHTML='<header>'+title+'</header><div class="body">'+bodyHTML+'</div><footer>'+footerHTML+'</footer>';
+  $('#veil').classList.add('on');
+}
+function closeModal(){$('#veil').classList.remove('on');$('#modal').innerHTML='';}
+$('#veil').addEventListener('click',e=>{if(e.target.id==='veil')closeModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#veil').classList.contains('on'))closeModal();});
+
+function dialog(opts){
+  const f=opts.fields||[];
+  let body=opts.note?'<p class="note">'+opts.note+'</p>':'';
+  f.forEach((fl,i)=>{
+    const id='fld'+i;
+    body+='<div class="frow"><label for="'+id+'">'+fl.label+'</label>';
+    if(fl.type==='textarea') body+='<textarea id="'+id+'" class="small">'+esc(fl.value||'')+'</textarea>';
+    else if(fl.type==='select') body+='<select id="'+id+'">'+fl.options.map(o=>'<option value="'+escAttr(o[0])+'">'+esc(o[1])+'</option>').join('')+'</select>';
+    else if(fl.type==='checkbox') body+='<span><input type="checkbox" id="'+id+'"'+(fl.value?' checked':'')+'></span>';
+    else if(fl.type==='number') body+='<span><input type="number" id="'+id+'" value="'+escAttr(fl.value||'')+'" min="'+(fl.min||1)+'" max="'+(fl.max||99)+'"></span>';
+    else body+='<input type="text" id="'+id+'" value="'+escAttr(fl.value||'')+'" placeholder="'+escAttr(fl.ph||'')+'">';
+    body+='</div>';
+  });
+  openModal(opts.title, body,
+    '<button class="btn" data-x="cancel">취소</button><button class="btn primary" data-x="ok">'+(opts.okText||'넣기')+'</button>');
+  const modal=$('#modal');
+  modal.querySelector('[data-x="cancel"]').onclick=closeModal;
+  modal.querySelector('[data-x="ok"]').onclick=()=>{
+    const v={};
+    f.forEach((fl,i)=>{const el=$('#fld'+i);v[fl.key]=fl.type==='checkbox'?el.checked:el.value;});
+    closeModal(); opts.onOk&&opts.onOk(v);
+  };
+  modal.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&e.target.tagName!=='TEXTAREA'){e.preventDefault();modal.querySelector('[data-x="ok"]').click();}
+  });
+  const first=modal.querySelector('input,textarea,select'); if(first){first.focus();first.select&&first.select();}
+}
+function confirmBox(msg,onOk,okText){
+  openModal('확인','<p class="note" style="font-size:13px;color:#2b2f31">'+msg+'</p>',
+    '<button class="btn" data-x="cancel">취소</button><button class="btn primary" data-x="ok">'+(okText||'삭제')+'</button>');
+  $('#modal').querySelector('[data-x="cancel"]').onclick=closeModal;
+  $('#modal').querySelector('[data-x="ok"]').onclick=()=>{closeModal();onOk();};
+}
+
+/* --- 선택 영역 기억 & Range 기반 삽입 --- */
+let savedRange=null, lastEditable=null;
+document.addEventListener('selectionchange',()=>{
+  const s=getSelection(); if(!s.rangeCount) return;
+  const r=s.getRangeAt(0);
+  let n=r.startContainer; n=n.nodeType===1?n:n.parentElement;
+  if(!n) return;
+  const ce=n.closest('[contenteditable="true"]');
+  if(ce && ce.closest('#wiki')){savedRange=r.cloneRange();lastEditable=ce;}
+  updateBars();
+});
+document.addEventListener('mousedown',e=>{
+  if(e.target.closest('#toolbar,.bar,.head-tools') && !e.target.closest('input,select,textarea')) e.preventDefault();
+});
+
+function bodyReady(){
+  if(!savedRange||!lastEditable||!lastEditable.isConnected){toast('먼저 본문을 클릭해 커서를 두세요');return false;}
+  if(lastEditable.classList.contains('head-title')||lastEditable.classList.contains('toc-text')||lastEditable.id==='docTitle'){
+    toast('제목 줄에는 넣을 수 없습니다. 본문을 클릭하세요');return false;
   }
-  docBody.addEventListener('keyup', saveSelection);
-  docBody.addEventListener('mouseup', saveSelection);
-  docBody.addEventListener('focus', saveSelection);
+  return true;
+}
+function insertAtSaved(html){
+  if(!bodyReady()) return;
+  const r=savedRange.cloneRange();
+  r.deleteContents();
+  const tpl=document.createElement('template'); tpl.innerHTML=html;
+  const frag=tpl.content, last=frag.lastChild;
+  r.insertNode(frag);
+  const nr=document.createRange();
+  nr.setStartAfter(last); nr.collapse(true);
+  savedRange=nr;
+  const s=getSelection(); s.removeAllRanges(); s.addRange(nr);
+  lastEditable.focus();
+  afterEdit();
+}
+function restoreSel(){
+  if(!savedRange||!lastEditable||!lastEditable.isConnected) return false;
+  lastEditable.focus();
+  const s=getSelection(); s.removeAllRanges(); s.addRange(savedRange);
+  return true;
+}
+function exec(cmd,val){
+  if(!restoreSel()){toast('먼저 본문을 클릭해 커서를 두세요');return;}
+  document.execCommand(cmd,false,val==null?null:val);
+  afterEdit();
+}
+try{document.execCommand('styleWithCSS',false,true);}catch(e){}
 
-  function showToast(msg){
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(()=>t.classList.remove('show'), 1800);
+/* =========================================================
+   3) 문단(섹션)
+   ========================================================= */
+let uid=0;
+const SECS=()=>[...$('#sections').children].filter(n=>n.classList.contains('wiki-section'));
+
+function newSection(level,title,bodyHTML){
+  const sec=document.createElement('section');
+  sec.className='wiki-section';
+  sec.dataset.level=level;
+  sec.id='sec-'+(++uid);
+  sec.innerHTML=
+    '<div class="wiki-heading" data-level="'+level+'">'+
+      '<span class="head-tools editor-only">'+
+        '<button type="button" data-act="up" title="위로 이동">↑</button>'+
+        '<button type="button" data-act="down" title="아래로 이동">↓</button>'+
+        '<button type="button" data-act="out" title="상위 단계로">←</button>'+
+        '<button type="button" data-act="in" title="하위 단계로">→</button>'+
+        '<button type="button" data-act="add" title="아래에 문단 추가">＋</button>'+
+        '<button type="button" data-act="del" title="이 문단 삭제">✕</button>'+
+      '</span>'+
+      '<span class="head-num"></span>'+
+      '<span class="head-title" contenteditable="true" spellcheck="false"></span>'+
+      '<span class="edit-link">[편집]</span>'+
+      '<button class="fold-btn" type="button">[접기]</button>'+
+    '</div>'+
+    '<div class="section-body" contenteditable="true" data-ph="내용을 입력하세요."></div>';
+  sec.querySelector('.head-title').textContent=title||'제목';
+  sec.querySelector('.section-body').innerHTML=bodyHTML||'';
+  return sec;
+}
+function normalizeLevels(){
+  let prev=0;
+  SECS().forEach(sec=>{
+    let lv=parseInt(sec.dataset.level,10)||1;
+    if(lv>prev+1) lv=prev+1;
+    if(lv<1) lv=1; if(lv>6) lv=6;
+    sec.dataset.level=lv;
+    sec.querySelector('.wiki-heading').dataset.level=lv;
+    prev=lv;
+  });
+}
+function renumber(){
+  normalizeLevels();
+  const c=[0,0,0,0,0,0];
+  SECS().forEach(sec=>{
+    const lv=+sec.dataset.level;
+    c[lv-1]++;
+    for(let i=lv;i<6;i++) c[i]=0;
+    const num=c.slice(0,lv).join('.')+'.';
+    sec.dataset.num=num;
+    sec.querySelector('.head-num').textContent=num;
+  });
+  buildTOC();
+}
+function buildTOC(){
+  const list=$('#tocList'); list.innerHTML='';
+  const arr=SECS();
+  $('#tocBox').style.display=arr.length?'':'none';
+  arr.forEach(sec=>{
+    const lv=+sec.dataset.level;
+    const item=document.createElement('div');
+    item.className='toc-item';
+    item.style.paddingLeft=((lv-1)*1.15)+'em';
+    item.dataset.ref=sec.id;
+    item.innerHTML='<span class="toc-num"></span><span class="toc-text" contenteditable="true" spellcheck="false"></span>';
+    item.querySelector('.toc-num').textContent=sec.dataset.num;
+    item.querySelector('.toc-text').textContent=sec.querySelector('.head-title').textContent;
+    list.appendChild(item);
+  });
+}
+function blockOf(sec){
+  const lv=+sec.dataset.level, arr=[sec];
+  let n=sec.nextElementSibling;
+  while(n && n.classList.contains('wiki-section') && +n.dataset.level>lv){arr.push(n);n=n.nextElementSibling;}
+  return arr;
+}
+function moveBlock(sec,dir){
+  const cont=$('#sections'), block=blockOf(sec), lv=+sec.dataset.level;
+  if(dir<0){
+    let start=sec.previousElementSibling; if(!start) return;
+    while(start && +start.dataset.level>lv) start=start.previousElementSibling;
+    if(!start) return;
+    block.forEach(n=>cont.insertBefore(n,start));
+  }else{
+    const next=block[block.length-1].nextElementSibling; if(!next) return;
+    const nb=blockOf(next), ref=nb[nb.length-1].nextElementSibling;
+    block.forEach(n=>ref?cont.insertBefore(n,ref):cont.appendChild(n));
   }
+  renumber();
+}
 
-  // insert node(s) at the last known cursor position inside doc-body
-  function insertAtCursor(nodeOrNodes){
-    docBody.focus();
-    restoreSelection();
-    const sel = window.getSelection();
-    let range;
-    if(sel.rangeCount && docBody.contains(sel.getRangeAt(0).commonAncestorContainer)){
-      range = sel.getRangeAt(0);
-    } else {
-      range = document.createRange();
-      range.selectNodeContents(docBody);
-      range.collapse(false);
-    }
-    range.deleteContents();
-    const nodes = Array.isArray(nodeOrNodes) ? nodeOrNodes : [nodeOrNodes];
-    nodes.forEach(n=>{
-      range.insertNode(n);
-      range.setStartAfter(n);
-    });
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    savedRange = range.cloneRange();
+/* 제목 옆 도구 — 문서 전체에 위임 */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('.head-tools button'); if(!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const sec=b.closest('.wiki-section'); if(!sec) return;
+  const act=b.dataset.act;
+  if(act==='up') moveBlock(sec,-1);
+  else if(act==='down') moveBlock(sec,1);
+  else if(act==='in'){sec.dataset.level=Math.min(6,+sec.dataset.level+1);renumber();}
+  else if(act==='out'){sec.dataset.level=Math.max(1,+sec.dataset.level-1);renumber();}
+  else if(act==='add'){
+    const blk=blockOf(sec), last=blk[blk.length-1];
+    const ns=newSection(+sec.dataset.level,'새 문단','');
+    last.after(ns); renumber(); ns.querySelector('.head-title').focus();
   }
-
-  // ---- Bold / Strike ----
-  document.getElementById('btnBold').addEventListener('click', ()=>{
-    docBody.focus(); restoreSelection();
-    document.execCommand('bold');
-    saveSelection();
-  });
-  document.getElementById('btnStrike').addEventListener('click', ()=>{
-    docBody.focus(); restoreSelection();
-    document.execCommand('strikeThrough');
-    saveSelection();
-  });
-
-  // ---- Fake hyperlink ----
-  document.getElementById('btnFakeLink').addEventListener('click', ()=>{
-    docBody.focus(); restoreSelection();
-    const sel = window.getSelection();
-    if(!sel.rangeCount || sel.getRangeAt(0).collapsed){
-      showToast('링크처럼 표시할 텍스트를 먼저 선택하세요');
-      return;
-    }
-    const range = sel.getRangeAt(0);
-    const span = document.createElement('span');
-    span.className = 'fake-link';
-    try{
-      range.surroundContents(span);
-    }catch(e){
-      const frag = range.extractContents();
-      span.appendChild(frag);
-      range.insertNode(span);
-    }
-    saveSelection();
-  });
-
-  // ---- Heading select ----
-  document.getElementById('headingSelect').addEventListener('change', (e)=>{
-    docBody.focus(); restoreSelection();
-    document.execCommand('formatBlock', false, e.target.value);
-    saveSelection();
-    e.target.value = 'P';
-    renderToc();
-  });
-
-  // ---- Horizontal rule ----
-  document.getElementById('btnHr').addEventListener('click', ()=>{
-    docBody.focus(); restoreSelection();
-    document.execCommand('insertHorizontalRule');
-    saveSelection();
-  });
-
-  // ---- Quote ----
-  document.getElementById('btnQuote').addEventListener('click', ()=>{
-    docBody.focus(); restoreSelection();
-    document.execCommand('formatBlock', false, 'BLOCKQUOTE');
-    const sel = window.getSelection();
-    if(sel.rangeCount){
-      let node = sel.getRangeAt(0).startContainer;
-      while(node && node !== docBody){
-        if(node.nodeType === 1 && node.tagName === 'BLOCKQUOTE'){
-          node.classList.add('wiki-quote');
-          break;
-        }
-        node = node.parentNode;
-      }
-    }
-    saveSelection();
-  });
-
-  // ---- Footnote ----
-  const fnBackdrop = document.getElementById('fn-modal-backdrop');
-  const fnInput = document.getElementById('fn-input');
-
-  document.getElementById('btnFootnote').addEventListener('click', ()=>{
-    saveSelection();
-    fnInput.value = '';
-    fnBackdrop.style.display = 'flex';
-    fnInput.focus();
-  });
-  document.getElementById('fnCancel').addEventListener('click', ()=>{
-    fnBackdrop.style.display = 'none';
-  });
-  document.getElementById('fnConfirm').addEventListener('click', ()=>{
-    const text = fnInput.value.trim();
-    fnBackdrop.style.display = 'none';
-    if(!text) return;
-    const sup = document.createElement('sup');
-    sup.className = 'wiki-fn';
-    sup.dataset.note = text;
-    sup.textContent = '[*]';
-    insertAtCursor(sup);
-    renumberFootnotes();
-  });
-
-  function renumberFootnotes(){
-    const fns = docBody.querySelectorAll('.wiki-fn');
-    const list = document.getElementById('footnote-list');
-    const box = document.getElementById('footnote-box');
-    list.innerHTML = '';
-    if(fns.length === 0){
-      box.classList.add('empty');
-      return;
-    }
-    box.classList.remove('empty');
-    fns.forEach((fn, i)=>{
-      fn.textContent = '[' + (i+1) + ']';
-      const li = document.createElement('li');
-      li.textContent = (i+1) + '. ' + fn.dataset.note;
-      list.appendChild(li);
-    });
-  }
-
-  // ---- Image insert ----
-  const imgFileInput = document.getElementById('imgFileInput');
-  document.getElementById('btnInsertImage').addEventListener('click', ()=>{
-    saveSelection();
-    imgFileInput.click();
-  });
-  imgFileInput.addEventListener('change', (e)=>{
-    const file = e.target.files[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = function(ev){
-      const img = document.createElement('img');
-      img.src = ev.target.result;
-      img.alt = '이미지';
-      insertAtCursor(img);
-    };
-    reader.readAsDataURL(file);
-    imgFileInput.value = '';
-  });
-
-  // ---- Table insert ----
-  document.getElementById('btnInsertTable').addEventListener('click', ()=>{
-    saveSelection();
-    let rows = parseInt(window.prompt('행(가로줄) 개수를 입력하세요', '3'), 10);
-    if(!rows || rows < 1) { showToast('올바른 행 개수를 입력하세요'); return; }
-    let cols = parseInt(window.prompt('열(세로줄) 개수를 입력하세요', '3'), 10);
-    if(!cols || cols < 1) { showToast('올바른 열 개수를 입력하세요'); return; }
-    rows = Math.min(rows, 30);
-    cols = Math.min(cols, 20);
-    const table = document.createElement('table');
-    table.className = 'doc-table';
-    for(let r=0; r<rows; r++){
-      const tr = document.createElement('tr');
-      for(let c=0; c<cols; c++){
-        const cell = document.createElement(r===0 ? 'th' : 'td');
-        cell.textContent = r===0 ? ('제목' + (c+1)) : '';
-        tr.appendChild(cell);
-      }
-      table.appendChild(tr);
-    }
-    const p = document.createElement('p');
-    p.innerHTML = '<br>';
-    insertAtCursor([table, p]);
-  });
-
-  // ---- Table background color ----
-  let activeTableForColor = null;
-  function rgbToHex(rgb){
-    if(!rgb) return null;
-    const m = rgb.match(/\d+/g);
-    if(!m) return null;
-    return '#' + m.slice(0,3).map(x=>parseInt(x,10).toString(16).padStart(2,'0')).join('');
-  }
-  document.getElementById('btnTableColor').addEventListener('click', ()=>{
-    let table = null;
-    if(savedRange){
-      let node = savedRange.commonAncestorContainer;
-      let el = node.nodeType === 1 ? node : node.parentElement;
-      table = el ? el.closest('table') : null;
-    }
-    if(!table){
-      showToast('표 안을 클릭한 뒤 다시 시도하세요');
-      return;
-    }
-    activeTableForColor = table;
-    const hex = rgbToHex(table.style.backgroundColor) || '#ffffff';
-    document.getElementById('colorHex').value = hex;
-    document.getElementById('colorPicker').value = hex;
-    document.getElementById('color-modal-backdrop').style.display = 'flex';
-  });
-  document.getElementById('colorPicker').addEventListener('input', (e)=>{
-    document.getElementById('colorHex').value = e.target.value;
-  });
-  document.getElementById('colorHex').addEventListener('input', (e)=>{
-    const v = e.target.value.trim();
-    if(/^#[0-9a-fA-F]{6}$/.test(v)) document.getElementById('colorPicker').value = v;
-  });
-  document.getElementById('colorCancel').addEventListener('click', ()=>{
-    document.getElementById('color-modal-backdrop').style.display = 'none';
-  });
-  document.getElementById('colorConfirm').addEventListener('click', ()=>{
-    const v = document.getElementById('colorHex').value.trim();
-    if(!/^#[0-9a-fA-F]{6}$/.test(v)){
-      showToast('올바른 헥스코드를 입력하세요 (예: #ffcc00)');
-      return;
-    }
-    if(activeTableForColor) activeTableForColor.style.backgroundColor = v;
-    document.getElementById('color-modal-backdrop').style.display = 'none';
-    showToast('표 배경색을 적용했습니다');
-  });
-
-  // ---- Heading numbering ----
-  function ensureHeadingId(h){
-    if(!h.id) h.id = 'hd-' + (++headingIdSeed);
-  }
-  function renumberHeadings(){
-    const heads = Array.from(docBody.querySelectorAll('h2, h3, h4'));
-    const counters = [0,0,0];
-    heads.forEach(h=>{
-      ensureHeadingId(h);
-      const level = h.tagName === 'H2' ? 0 : h.tagName === 'H3' ? 1 : 2;
-      counters[level]++;
-      for(let k=level+1;k<3;k++) counters[k]=0;
-      const label = counters.slice(0, level+1).join('.') + '.';
-      let num = h.querySelector(':scope > .hnum');
-      if(!num){
-        num = document.createElement('span');
-        num.className = 'hnum';
-        num.contentEditable = 'false';
-        h.insertBefore(num, h.firstChild);
-        h.insertBefore(document.createTextNode(' '), num.nextSibling);
-      }
-      num.textContent = label;
-    });
-    return heads;
-  }
-  function getHeadingTitle(h){
-    const clone = h.cloneNode(true);
-    const num = clone.querySelector('.hnum');
-    if(num) num.remove();
-    return clone.textContent.replace(/^\s+/, '').trim();
-  }
-
-  // ---- TOC render (body -> toc box), also relocates toc box before first heading ----
-  function renderToc(){
-    const heads = renumberHeadings();
-    const tocBox = document.getElementById('toc-box');
-    const tocList = document.getElementById('toc-list');
-    tocList.innerHTML = '';
-    if(heads.length === 0){
-      tocBox.style.display = 'none';
-      return;
-    }
-    const first = heads[0];
-    if(tocBox.nextSibling !== first){
-      docBody.insertBefore(tocBox, first);
-    }
-    tocBox.style.display = 'block';
-
-    function getChildOl(li){
-      let ol = li.querySelector(':scope > ol');
-      if(!ol){ ol = document.createElement('ol'); li.appendChild(ol); }
-      return ol;
-    }
-    let stack = [{level:-1, li:null}];
-    heads.forEach(h=>{
-      const level = h.tagName === 'H2' ? 0 : h.tagName === 'H3' ? 1 : 2;
-      const label = h.querySelector('.hnum').textContent;
-      const title = getHeadingTitle(h);
-      while(stack.length > 1 && stack[stack.length-1].level >= level) stack.pop();
-      const parentEntry = stack[stack.length-1];
-      const parentOl = parentEntry.li ? getChildOl(parentEntry.li) : tocList;
-      const li = document.createElement('li');
-      li.dataset.hid = h.id;
-      li.textContent = label + ' ' + title;
-      parentOl.appendChild(li);
-      stack.push({level, li});
+  else if(act==='del'){
+    const name=sec.querySelector('.head-title').textContent||'이 문단';
+    confirmBox('<b>'+esc(sec.dataset.num+' '+name)+'</b> 문단을 삭제합니다. 하위 문단은 한 단계 올라갑니다.',()=>{
+      sec.remove(); renumber(); toast('문단을 삭제했습니다');
     });
   }
+});
 
-  // ---- parse the (possibly hand-edited) toc box back into an outline ----
-  function parseTocOutline(){
-    const result = [];
-    function walk(ol, level){
-      Array.from(ol.children).forEach(li=>{
-        if(li.tagName !== 'LI') return;
-        let text = '';
-        Array.from(li.childNodes).forEach(n=>{
-          if(n.nodeType === 3) text += n.textContent;
-          else if(n.nodeType === 1 && n.tagName !== 'OL') text += n.textContent;
-        });
-        result.push({li, level: Math.min(level,2), text: text.trim()});
-        const nested = li.querySelector(':scope > ol');
-        if(nested) walk(nested, level+1);
-      });
-    }
-    walk(document.getElementById('toc-list'), 0);
-    return result;
+/* 목차 번호 클릭 → 해당 문단으로 이동 */
+$('#tocList').addEventListener('click',e=>{
+  if(e.target.classList.contains('toc-num')){
+    const sec=document.getElementById(e.target.closest('.toc-item').dataset.ref);
+    sec&&sec.scrollIntoView({behavior:'smooth',block:'center'});
   }
+});
 
-  // ---- apply toc edits/additions back into the document body ----
-  function applyTocToBody(){
-    const outline = parseTocOutline();
-    outline.forEach(item=>{
-      const title = item.text.replace(/^\s*[\d.]+\.?\s*/, '').trim();
-      if(!title) return;
-      const existing = item.li.dataset.hid ? document.getElementById(item.li.dataset.hid) : null;
-      if(existing){
-        const num = existing.querySelector('.hnum');
-        existing.innerHTML = '';
-        if(num) existing.appendChild(num);
-        existing.appendChild(document.createTextNode(' ' + title));
-      } else {
-        const tag = item.level === 0 ? 'h2' : item.level === 1 ? 'h3' : 'h4';
-        const heading = document.createElement(tag);
-        heading.id = 'hd-' + (++headingIdSeed);
-        heading.textContent = title;
-        const p = document.createElement('p');
-        p.textContent = '내용을 입력하세요.';
-        docBody.appendChild(heading);
-        docBody.appendChild(p);
-        item.li.dataset.hid = heading.id;
-      }
+/* 목차 ↔ 본문 제목 연동 */
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.classList&&t.classList.contains('head-title')){
+    const sec=t.closest('.wiki-section');
+    const el=document.querySelector('.toc-item[data-ref="'+sec.id+'"] .toc-text');
+    if(el&&el!==document.activeElement) el.textContent=t.textContent;
+  }else if(t.classList&&t.classList.contains('toc-text')){
+    const sec=document.getElementById(t.closest('.toc-item').dataset.ref);
+    const h=sec&&sec.querySelector('.head-title');
+    if(h&&h!==document.activeElement) h.textContent=t.textContent;
+  }
+  if(t.closest&&t.closest('#wiki')) afterEdit();
+});
+
+/* 한 줄 입력칸에서 Enter 처리 */
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter') return;
+  const t=e.target;
+  if(t.classList&&t.classList.contains('head-title')){e.preventDefault();t.closest('.wiki-section').querySelector('.section-body').focus();}
+  else if(t.classList&&(t.classList.contains('toc-text')||t.classList.contains('cat-body'))){e.preventDefault();t.blur();}
+  else if(t.id==='docTitle'){e.preventDefault();$('#catBody').focus();}
+});
+
+$('#btnAddTop').addEventListener('click',()=>{
+  const ns=newSection(1,'새 문단','');
+  $('#sections').appendChild(ns); renumber(); ns.querySelector('.head-title').focus();
+});
+
+/* =========================================================
+   4) 목차 생성 / 편집
+   ========================================================= */
+function currentOutlineText(){
+  return SECS().map(s=>'  '.repeat(+s.dataset.level-1)+s.querySelector('.head-title').textContent).join('\n');
+}
+function parseOutline(text){
+  const out=[];
+  text.split('\n').forEach(raw=>{
+    if(!raw.trim()) return;
+    const indent=(raw.match(/^[\t ]*/)[0]).replace(/\t/g,'  ').length;
+    let level=Math.floor(indent/2)+1, title=raw.trim();
+    const m=title.match(/^(\d+(?:\.\d+)*)\.?\s+(.+)$/);
+    if(m){level=m[1].split('.').length;title=m[2].trim();}
+    out.push({level:Math.min(Math.max(level,1),6),title});
+  });
+  let prev=0;
+  out.forEach(o=>{if(o.level>prev+1)o.level=prev+1;prev=o.level;});
+  return out;
+}
+function applyOutline(items){
+  const keep={};
+  SECS().forEach(s=>{
+    const t=s.querySelector('.head-title').textContent;
+    if(!(t in keep)) keep[t]=s.querySelector('.section-body').innerHTML;
+  });
+  const cont=$('#sections'); cont.innerHTML='';
+  items.forEach(it=>cont.appendChild(newSection(it.level,it.title,keep[it.title]||'')));
+  renumber();
+}
+$('#btnOutline').addEventListener('click',()=>{
+  openModal('목차 생성 / 편집',
+    '<p class="note">한 줄에 제목 하나. 앞에 <b>공백 2칸(또는 탭)</b>을 넣으면 하위 문단이 됩니다. <code>1.1. 제목</code>처럼 번호를 직접 써도 됩니다.<br>저장하면 각 제목의 문단이 본문에 만들어집니다. 제목이 같은 문단의 내용은 그대로 유지됩니다.</p>'+
+    '<textarea id="outlineText" spellcheck="false"></textarea>',
+    '<button class="btn" onclick="closeModal()">취소</button><button class="btn primary" id="outlineApply">문단 만들기</button>');
+  $('#outlineText').value=currentOutlineText()||'개요\n상세\n  역사\n  특징\n여담\n둘러보기';
+  $('#outlineText').focus();
+  $('#outlineApply').onclick=()=>{
+    const items=parseOutline($('#outlineText').value);
+    if(!items.length){toast('제목을 한 줄 이상 입력하세요');return;}
+    applyOutline(items); closeModal(); toast(items.length+'개 문단을 만들었습니다');
+  };
+});
+
+/* =========================================================
+   5) 서식 · 삽입
+   ========================================================= */
+$$('#toolbar [data-cmd]').forEach(b=>b.addEventListener('click',()=>exec(b.dataset.cmd)));
+$('#btnClear').addEventListener('click',()=>exec('removeFormat'));
+
+/* 글자 색: 선택 영역을 직접 감싸므로 확실하게 적용됨 */
+$('#btnColor').addEventListener('click',()=>{
+  const c=hex($('#colorHex').value);
+  if(!c){toast('헥스코드를 확인하세요 (예: #ff0000)');return;}
+  if(!savedRange||savedRange.collapsed){toast('색을 입힐 글자를 드래그해 선택하세요');return;}
+  const r=savedRange.cloneRange();
+  const span=document.createElement('span');
+  span.style.color=c;
+  span.appendChild(r.extractContents());
+  r.insertNode(span);
+  const nr=document.createRange(); nr.selectNodeContents(span);
+  savedRange=nr;
+  const s=getSelection(); s.removeAllRanges(); s.addRange(nr);
+  lastEditable&&lastEditable.focus();
+  afterEdit();
+});
+
+$('#btnHr').addEventListener('click',()=>insertAtSaved('<hr class="wiki-hr">'));
+$('#btnQuote').addEventListener('click',()=>{
+  const txt=(savedRange&&!savedRange.collapsed)?savedRange.toString():'';
+  insertAtSaved('<div class="wiki-quote">'+(txt?esc(txt):'인용할 내용')+'</div><p><br></p>');
+});
+
+/* 주석 */
+$('#btnFn').addEventListener('click',()=>{
+  if(!bodyReady()) return;
+  dialog({title:'주석 넣기',
+    note:'문서 맨 아래에 번호와 함께 자동으로 정리됩니다. 넣은 주석을 클릭하면 다시 고칠 수 있습니다.',
+    fields:[{key:'t',label:'주석 내용',type:'textarea',value:''}],
+    onOk:v=>{
+      if(!v.t.trim()){toast('내용이 비어 있습니다');return;}
+      insertAtSaved('<a class="fn-ref" contenteditable="false" data-fn="'+escAttr(v.t.trim())+'">[*]</a>&#8203;');
+      renderFootnotes();
+    }});
+});
+function renderFootnotes(){
+  const refs=$$('#wiki .fn-ref'), area=$('#footnotes');
+  if(!refs.length){area.innerHTML='';return;}
+  let html='';
+  refs.forEach((r,i)=>{
+    const n=i+1;
+    r.textContent='['+n+']';
+    r.setAttribute('title',r.dataset.fn||'');
+    r.id='fnref-'+n;
+    html+='<div class="fn-item"><a class="fn-no" href="#fnref-'+n+'">['+n+']</a><span>'+esc(r.dataset.fn||'')+'</span></div>';
+  });
+  area.innerHTML=html;
+}
+let fnTimer=null;
+function afterEdit(){clearTimeout(fnTimer);fnTimer=setTimeout(renderFootnotes,250);}
+
+/* 링크 */
+$('#btnLink').addEventListener('click',()=>{
+  if(!bodyReady()) return;
+  const sel=(savedRange&&!savedRange.collapsed)?savedRange.toString():'';
+  dialog({title:'링크 넣기',
+    note:'주소를 비워두면 실제로 이동하지 않고 파란 글씨로 보이기만 합니다.',
+    fields:[
+      {key:'text',label:'보이는 글자',value:sel||'문서 이름'},
+      {key:'url',label:'주소(선택)',value:'',ph:'another.html 또는 https://...'},
+      {key:'color',label:'색',type:'select',options:[['blue','파란색 (있는 문서)'],['red','빨간색 (없는 문서)']]}
+    ],
+    onOk:v=>{
+      const t=v.text.trim()||'문서 이름', cls=v.color==='red'?' red':'';
+      insertAtSaved(v.url.trim()
+        ? '<a class="wiki-link'+cls+'" href="'+escAttr(v.url.trim())+'" target="_blank" rel="noopener">'+esc(t)+'</a>&#8203;'
+        : '<span class="fake-link'+cls+'">'+esc(t)+'</span>&#8203;');
+    }});
+});
+
+/* 상세 내용 안내 (초록 화살표) */
+const DETAIL_ICON='<svg class="detail-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#1e9c4a" d="M4 3v8.5C4 15.6 7.3 19 11.4 19H16v3.2L22.5 17 16 11.8V15h-4.6C9.5 15 8 13.5 8 11.5V3H4z"/></svg>';
+$('#btnDetail').addEventListener('click',()=>{
+  if(!bodyReady()) return;
+  dialog({title:'상세 내용 안내 넣기',
+    note:'“○○에 대한 내용은 △△ 문서를 참고하십시오.” 형태로 들어갑니다.',
+    fields:[
+      {key:'a',label:'○○ (주제)',value:'',ph:'예: 등장인물'},
+      {key:'b',label:'△△ (문서 이름)',value:'',ph:'파란색으로 표시됩니다'},
+      {key:'url',label:'주소(선택)',value:'',ph:'비우면 링크처럼 보이기만 합니다'}
+    ],
+    onOk:v=>{
+      const a=esc(v.a.trim()||'해당 내용'), b=esc(v.b.trim()||'문서 이름');
+      const link=v.url.trim()
+        ? '<a class="wiki-link" href="'+escAttr(v.url.trim())+'" target="_blank" rel="noopener">'+b+'</a>'
+        : '<span class="fake-link">'+b+'</span>';
+      insertAtSaved('<div class="wiki-detail">'+DETAIL_ICON+a+'에 대한 내용은 '+link+' 문서를 참고하십시오.</div><p><br></p>');
+    }});
+});
+
+/* 사진 */
+$('#btnImage').addEventListener('click',()=>{ if(!bodyReady())return; $('#fileInput').click(); });
+$('#fileInput').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>insertAtSaved('<div class="img-block img-center"><img class="wiki-img" src="'+rd.result+'" style="width:60%"></div><p><br></p>');
+  rd.readAsDataURL(f);
+  e.target.value='';
+});
+let selImg=null;
+$('#wiki').addEventListener('click',e=>{
+  const ref=e.target.closest('.fn-ref');
+  if(ref&&!document.body.classList.contains('preview')){
+    dialog({title:'주석 수정',okText:'저장',
+      note:'내용을 모두 지우고 저장하면 주석이 삭제됩니다.',
+      fields:[{key:'t',label:'주석 내용',type:'textarea',value:ref.dataset.fn||''}],
+      onOk:v=>{ if(!v.t.trim()) ref.remove(); else ref.dataset.fn=v.t.trim(); renderFootnotes(); }});
+    return;
+  }
+  if(selImg){selImg.classList.remove('sel');selImg=null;}
+  const img=e.target.closest('.wiki-img');
+  if(img&&!document.body.classList.contains('preview')){
+    selImg=img; img.classList.add('sel');
+    $('#imgW').value=parseInt(img.style.width)||60;
+  }
+  updateBars();
+});
+$('#imgBar').addEventListener('click',e=>{
+  const b=e.target.closest('[data-i]'); if(!b||!selImg) return;
+  const box=selImg.closest('.img-block')||selImg.parentElement, a=b.dataset.i;
+  if(a==='apply') selImg.style.width=Math.min(100,Math.max(5,+$('#imgW').value||60))+'%';
+  else if(a==='left'||a==='center'||a==='right'){box.classList.remove('img-left','img-center','img-right');box.classList.add('img-'+a);}
+  else if(a==='caption'){
+    dialog({title:'사진 설명',okText:'저장',fields:[{key:'t',label:'설명',value:(box.querySelector('.img-cap')||{}).textContent||''}],
+      onOk:v=>{
+        let cap=box.querySelector('.img-cap');
+        if(!v.t.trim()){cap&&cap.remove();return;}
+        if(!cap){cap=document.createElement('div');cap.className='img-cap';box.appendChild(cap);}
+        cap.textContent=v.t.trim();
+      }});
+  }
+  else if(a==='del'){box.remove();selImg=null;updateBars();}
+});
+
+/* 표 */
+$('#btnTable').addEventListener('click',()=>{
+  if(!bodyReady()) return;
+  dialog({title:'표 만들기',okText:'표 넣기',
+    note:'표를 만든 뒤 칸을 클릭하면 행·열 추가/삭제와 배경색 도구가 위쪽에 나타납니다.',
+    fields:[
+      {key:'r',label:'행 수',type:'number',value:3,min:1,max:40},
+      {key:'c',label:'열 수',type:'number',value:3,min:1,max:20},
+      {key:'h',label:'첫 행을 제목칸으로',type:'checkbox',value:true}
+    ],
+    onOk:v=>{
+      const R=Math.max(1,+v.r||3), C=Math.max(1,+v.c||3);
+      let h='<table class="wiki-table"><tbody>';
+      for(let r=0;r<R;r++){h+='<tr>';for(let c=0;c<C;c++){h+=(v.h&&r===0)?'<th>제목</th>':'<td><br></td>';}h+='</tr>';}
+      h+='</tbody></table><p><br></p>';
+      insertAtSaved(h);
+    }});
+});
+function curCell(){
+  const s=getSelection(); if(!s.rangeCount) return null;
+  let n=s.getRangeAt(0).startContainer; n=n.nodeType===1?n:n.parentElement;
+  return n?n.closest('#wiki td,#wiki th'):null;
+}
+let lastCell=null;
+$('#tableBar').addEventListener('click',e=>{
+  const b=e.target.closest('[data-t]'); if(!b) return;
+  const cell=lastCell;
+  if(!cell||!cell.isConnected){toast('표의 칸을 먼저 클릭하세요');return;}
+  const tr=cell.parentElement, table=cell.closest('table'), idx=[...tr.children].indexOf(cell), a=b.dataset.t;
+  const mk=tag=>{const c=document.createElement(tag);c.innerHTML='<br>';return c;};
+  if(a==='rowAbove'||a==='rowBelow'){
+    const ntr=document.createElement('tr');
+    [...tr.children].forEach(c=>ntr.appendChild(mk(c.tagName==='TH'?'th':'td')));
+    tr.parentElement.insertBefore(ntr,a==='rowBelow'?tr.nextSibling:tr);
+  }
+  else if(a==='rowDel'){ if(table.rows.length<=1){toast('마지막 행은 지울 수 없습니다');return;} tr.remove(); lastCell=null; }
+  else if(a==='colLeft'||a==='colRight'){
+    [...table.rows].forEach(row=>{
+      const ref=row.cells[idx], c=mk(ref&&ref.tagName==='TH'?'th':'td');
+      if(!ref) row.appendChild(c); else row.insertBefore(c,a==='colRight'?ref.nextSibling:ref);
     });
-    renderToc();
-    showToast('목차 내용을 본문에 반영했습니다');
   }
-
-  document.getElementById('btnToc').addEventListener('click', ()=>{
-    renderToc();
-    showToast('목차를 생성했습니다');
-  });
-  document.getElementById('btnTocApply').addEventListener('click', applyTocToBody);
-
-  // ---- Build exportable HTML string ----
-  function buildExportHTML(){
-    renumberFootnotes();
-    renderToc();
-    const clone = document.getElementById('capture-area').cloneNode(true);
-    clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
-    const styleText = document.querySelector('style').textContent;
-    const title = (document.getElementById('doc-title').textContent || '문서').trim();
-    return '<!DOCTYPE html>\n<html lang="ko">\n<head>\n<meta charset="UTF-8">\n<title>' + title +
-      '</title>\n<style>\nbody{margin:0;background:#f3f3f3;}\n' + styleText +
-      '\n</style>\n</head>\n<body>\n<div id="page-wrap">\n' + clone.outerHTML + '\n</div>\n</body>\n</html>';
+  else if(a==='colDel'){
+    if(table.rows[0].cells.length<=1){toast('마지막 열은 지울 수 없습니다');return;}
+    [...table.rows].forEach(row=>row.cells[idx]&&row.cells[idx].remove());
+    lastCell=null;
   }
+  else if(a==='bg'||a==='bgClear'){
+    const color=a==='bg'?hex($('#cellHex').value):null;
+    if(a==='bg'&&!color){toast('헥스코드를 확인하세요 (예: #f5f5f5)');return;}
+    const scope=$('#bgScope').value;
+    let targets=[cell];
+    if(scope==='row') targets=[...tr.children];
+    else if(scope==='col') targets=[...table.rows].map(r=>r.cells[idx]).filter(Boolean);
+    else if(scope==='table') targets=[...table.querySelectorAll('td,th')];
+    targets.forEach(c=>c.style.backgroundColor=color||'');
+  }
+  else if(a==='th'||a==='td'){
+    const nc=document.createElement(a);
+    nc.innerHTML=cell.innerHTML; nc.style.cssText=cell.style.cssText;
+    cell.replaceWith(nc); lastCell=nc;
+  }
+  else if(a==='alignL') cell.style.textAlign='left';
+  else if(a==='alignC') cell.style.textAlign='center';
+  else if(a==='alignR') cell.style.textAlign='right';
+  else if(a==='tableDel') confirmBox('이 표를 삭제합니다.',()=>{table.remove();lastCell=null;updateBars();});
+  updateBars();
+});
+function updateBars(){
+  const c=curCell();
+  let inWiki=false;
+  const sel=getSelection();
+  if(sel.rangeCount){let n=sel.getRangeAt(0).startContainer;n=n.nodeType===1?n:n.parentElement;inWiki=!!(n&&n.closest('#wiki'));}
+  if(c) lastCell=c; else if(inWiki) lastCell=null;
+  const prev=document.body.classList.contains('preview');
+  $('#tableBar').classList.toggle('on',!!(lastCell&&lastCell.isConnected)&&!prev);
+  $('#imgBar').classList.toggle('on',!!selImg&&!prev);
+}
 
-  document.getElementById('btnCopy').addEventListener('click', async ()=>{
-    const html = buildExportHTML();
-    try{
-      await navigator.clipboard.writeText(html);
-      showToast('HTML 코드가 클립보드에 복사되었습니다');
-    }catch(e){
-      const ta = document.createElement('textarea');
-      ta.value = html;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      showToast('HTML 코드가 클립보드에 복사되었습니다');
-    }
-  });
+/* 붙여넣기: 서식 없는 글자 + 이미지 */
+$('#wiki').addEventListener('paste',e=>{
+  const dt=e.clipboardData; if(!dt) return;
+  const img=[...dt.items].find(i=>i.type.startsWith('image/'));
+  if(img){
+    e.preventDefault();
+    const rd=new FileReader();
+    rd.onload=()=>insertAtSaved('<div class="img-block img-center"><img class="wiki-img" src="'+rd.result+'" style="width:60%"></div>');
+    rd.readAsDataURL(img.getAsFile());
+    return;
+  }
+  e.preventDefault();
+  document.execCommand('insertHTML',false,esc(dt.getData('text/plain')).replace(/\n/g,'<br>'));
+  afterEdit();
+});
 
-  document.getElementById('btnSaveImage').addEventListener('click', ()=>{
-    renumberFootnotes();
-    renderToc();
-    const target = document.getElementById('capture-area');
-    showToast('이미지를 생성하는 중...');
-    html2canvas(target, {backgroundColor:'#ffffff', scale:2}).then(canvas=>{
-      const link = document.createElement('a');
-      const title = (document.getElementById('doc-title').textContent || 'document').trim() || 'document';
-      link.download = title + '.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    }).catch(()=>{
-      showToast('이미지 생성에 실패했습니다');
-    });
-  });
+/* =========================================================
+   6) 내보내기
+   ========================================================= */
+function cleanClone(){
+  const c=$('#wiki').cloneNode(true);
+  c.querySelectorAll('.editor-only').forEach(n=>n.remove());
+  c.querySelectorAll('[contenteditable]').forEach(n=>n.removeAttribute('contenteditable'));
+  c.querySelectorAll('[data-ph]').forEach(n=>n.removeAttribute('data-ph'));
+  c.querySelectorAll('[spellcheck]').forEach(n=>n.removeAttribute('spellcheck'));
+  c.querySelectorAll('.wiki-img').forEach(n=>n.classList.remove('sel'));
+  const drop=(sel,test)=>{const el=c.querySelector(sel);if(el&&test(el))el.remove();};
+  drop('#docTitle',el=>!el.textContent.trim());
+  const cat=c.querySelector('#catLine');
+  if(cat&&!cat.querySelector('.cat-body').textContent.trim()) cat.remove();
+  drop('#preamble',el=>!el.textContent.trim()&&!el.querySelector('img,table'));
+  drop('#footnotes',el=>!el.innerHTML.trim());
+  if(!c.querySelector('.toc-item')){const t=c.querySelector('#tocBox');t&&t.remove();}
+  return c;
+}
+function exportHTML(full){
+  const inner=cleanClone().outerHTML;
+  const script='<scr'+'ipt>'+FOLD_JS+'</scr'+'ipt>';
+  if(!full) return '<style>'+WIKI_CSS+'</style>\n'+inner+'\n'+script;
+  const title=($('#docTitle').textContent.trim())||(SECS()[0]?SECS()[0].querySelector('.head-title').textContent:'나무위키 스타일 문서');
+  return '<!DOCTYPE html>\n<html lang="ko">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>'+
+    esc(title)+'</title>\n<style>\nbody{margin:0;background:#f2f2f2}\n.page{max-width:1000px;margin:0 auto;background:#fff;padding:26px 30px 40px;min-height:100vh}\n'+
+    WIKI_CSS+'</style>\n</head>\n<body>\n<div class="page">\n'+inner+'\n</div>\n'+script+'\n</body>\n</html>';
+}
+$('#btnHtml').addEventListener('click',()=>{
+  openModal('HTML 코드',
+    '<div class="radios"><label><input type="radio" name="ex" value="full" checked> 완성된 HTML 문서</label>'+
+    '<label><input type="radio" name="ex" value="part"> 본문 조각 (블로그 붙여넣기용)</label></div>'+
+    '<textarea id="exArea" spellcheck="false" readonly></textarea>',
+    '<button class="btn" onclick="closeModal()">닫기</button><button class="btn" id="exDown">HTML 파일로 저장</button><button class="btn primary" id="exCopy">코드 복사</button>');
+  const fill=()=>{$('#exArea').value=exportHTML(document.querySelector('input[name=ex]:checked').value==='full');};
+  $$('input[name=ex]').forEach(r=>r.addEventListener('change',fill)); fill();
+  $('#exCopy').onclick=async()=>{
+    const ta=$('#exArea');
+    try{await navigator.clipboard.writeText(ta.value);toast('복사했습니다');}
+    catch(err){ta.removeAttribute('readonly');ta.select();document.execCommand('copy');ta.setAttribute('readonly','');toast('복사했습니다');}
+  };
+  $('#exDown').onclick=()=>{
+    const blob=new Blob([$('#exArea').value],{type:'text/html;charset=utf-8'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download='wiki.html'; a.click();
+    URL.revokeObjectURL(a.href); toast('저장했습니다');
+  };
+});
+$('#btnPng').addEventListener('click',async()=>{
+  document.body.classList.add('capturing');
+  if(selImg) selImg.classList.remove('sel');
+  try{
+    const canvas=await html2canvas($('#wiki'),{backgroundColor:'#ffffff',scale:2,useCORS:true,logging:false});
+    const a=document.createElement('a');
+    a.href=canvas.toDataURL('image/png'); a.download='wiki.png'; a.click();
+    toast('이미지를 저장했습니다');
+  }catch(err){console.error(err);toast('이미지 저장에 실패했습니다');}
+  finally{document.body.classList.remove('capturing'); if(selImg)selImg.classList.add('sel');}
+});
+$('#btnPreview').addEventListener('click',()=>{
+  const on=document.body.classList.toggle('preview');
+  $$('#wiki [contenteditable]').forEach(n=>n.setAttribute('contenteditable',on?'false':'true'));
+  $('#btnPreview').textContent=on?'편집 모드':'보기 모드';
+  if(on){if(selImg){selImg.classList.remove('sel');selImg=null;}}
+  updateBars();
+});
 
-  renumberFootnotes();
-  renderToc();
-})();
+/* =========================================================
+   7) 첫 화면
+   ========================================================= */
+$('#docTitle').textContent='';
+$('#catBody').textContent='';
+applyOutline(parseOutline('개요\n상세\n  역사\n  특징\n여담'));
+SECS()[0].querySelector('.section-body').innerHTML=
+  '<div class="wiki-detail">'+DETAIL_ICON+'이 문서의 사용법에 대한 내용은 <span class="fake-link">도움말</span> 문서를 참고하십시오.</div>'+
+  '본문을 입력하세요. 글자를 드래그해 선택한 뒤 <b>굵게</b>, <s>취소선</s>, 색, 링크, 주석<a class="fn-ref" contenteditable="false" data-fn="주석은 문서 맨 아래에 자동으로 정리됩니다.">[*]</a>을 적용할 수 있습니다.';
+renderFootnotes();
 </script>
 </body>
 </html>
