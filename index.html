@@ -10,7 +10,8 @@
 /* ============ 에디터 껍데기(문서에는 포함되지 않음) ============ */
 *{box-sizing:border-box}
 body{margin:0;background:#e8eaed;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#2b2f31}
-#appbar{position:sticky;top:0;z-index:60;background:#2d3436;color:#fff;padding:8px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#topbars{position:sticky;top:0;z-index:60}
+#appbar{background:#2d3436;color:#fff;padding:8px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 #appbar h1{font-size:14px;margin:0;font-weight:700;letter-spacing:-.2px;opacity:.95}
 #appbar .spacer{flex:1}
 .btn{font-family:inherit;font-size:12.5px;line-height:1;padding:7px 10px;border:1px solid #c9ced1;background:#fff;color:#2b2f31;border-radius:4px;cursor:pointer}
@@ -20,7 +21,7 @@ body{margin:0;background:#e8eaed;font-family:'Pretendard',-apple-system,BlinkMac
 .btn.dark:hover{background:#556065}
 .btn.primary{background:#0275d8;border-color:#0275d8;color:#fff}
 .btn.primary:hover{background:#0269c2}
-#toolbar{position:sticky;top:37px;z-index:55;background:#fff;border-bottom:1px solid #d5dadd;padding:6px 10px;display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+#toolbar{background:#fff;border-bottom:1px solid #d5dadd;padding:6px 10px;display:flex;gap:4px;flex-wrap:wrap;align-items:center}
 #toolbar .sep{width:1px;height:20px;background:#dfe4e6;margin:0 4px}
 #toolbar .grp{font-size:11px;color:#8a9296;margin-right:2px}
 .bar{position:fixed;left:0;right:0;bottom:0;z-index:70;background:#fff;border-top:1px solid #cfd5d8;box-shadow:0 -2px 10px rgba(0,0,0,.09);padding:9px 14px;margin:0;display:none;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px}
@@ -61,22 +62,47 @@ body.capturing [contenteditable]{outline:none!important}
 .frow{display:flex;gap:10px;align-items:center;margin:9px 0;font-size:13px}
 .frow>label{flex:0 0 108px;color:#5d6669}
 .frow>input[type=text],.frow>textarea,.frow>select{flex:1}
+.filemenu{display:grid;gap:8px}
+.fileitem{display:block;width:100%;text-align:left;padding:13px 14px;border:1px solid #d5dadd;border-radius:6px;background:#fff;cursor:pointer;font-family:inherit}
+.fileitem:hover{background:#f4f6f7;border-color:#aab2b6}
+.fileitem b{display:block;font-size:13.5px;color:#2b2f31}
+.fileitem span{display:block;font-size:12px;color:#8a9296;margin-top:2px}
 .radios{display:flex;gap:14px;font-size:12.5px;margin-bottom:8px}
 #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#2d3436;color:#fff;font-size:13px;padding:9px 16px;border-radius:20px;opacity:0;pointer-events:none;transition:.18s;z-index:200}
 #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
-@media (max-width:640px){#paper{padding:18px 14px 26px}#toolbar{top:57px}}
+@media (hover:none){.head-tools{opacity:.9}.head-tools button{padding:6px 8px;font-size:12px}}
+@media (max-width:720px){
+  #appbar{padding:6px 8px;gap:6px}
+  #appbar h1{width:100%;font-size:13px}
+  #appbar .spacer{display:none}
+  #appbar .btn{flex:1 1 auto;padding:9px 8px;font-size:12.5px}
+  #toolbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:6px 8px}
+  #toolbar>*{flex:0 0 auto}
+  #toolbar .btn{padding:9px 11px;font-size:13px}
+  .bar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:8px 10px}
+  .bar>*{flex:0 0 auto}
+  .bar .btn{padding:9px 11px;font-size:13px}
+  input[type=text],input[type=number],select,textarea{font-size:16px}
+  #stage{padding:0 8px;margin-bottom:120px}
+  #paper{padding:16px 12px 26px}
+  .modal .body{padding:12px}
+  .modal textarea{min-height:190px}
+  .frow{flex-wrap:wrap}
+  .frow>label{flex:0 0 100%}
+  .frow>input[type=text],.frow>select,.frow>textarea{width:100%}
+}
 </style>
 <style id="wikiStyle"></style>
 </head>
 <body>
 
+<div id="topbars">
 <div id="appbar">
   <h1>깡통위키 문서 생성기</h1>
   <div class="spacer"></div>
   <button class="btn dark" id="btnOutline">목차 생성 / 편집</button>
   <button class="btn dark" id="btnPreview">보기 모드</button>
-  <button class="btn dark" id="btnHtml">HTML 코드</button>
-  <button class="btn primary" id="btnPng">이미지로 저장</button>
+  <button class="btn primary" id="btnFile" title="저장 · 불러오기 · 내보내기"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M5 3.5h11L20.5 8v12.5h-16z"/><path d="M8.5 3.5h7V9h-7z"/><path d="M7.5 13.5h9v7h-9z"/></svg>파일</button>
 </div>
 
 <div id="toolbar">
@@ -104,6 +130,11 @@ body.capturing [contenteditable]{outline:none!important}
   <button class="btn" id="btnFolder">접는 틀</button>
   <span class="sep"></span>
   <button class="btn" id="btnClear" title="서식 지우기">서식 지우기</button>
+</div>
+</div>
+
+<div style="display:none" aria-hidden="true">
+  <button id="btnSave"></button><button id="btnLoad"></button><button id="btnHtml"></button><button id="btnPng"></button>
 </div>
 
 <div id="stage">
@@ -183,7 +214,8 @@ body.capturing [contenteditable]{outline:none!important}
 
 <div id="veil"><div class="modal" id="modal"></div></div>
 <div id="toast"></div>
-<input type="file" id="fileInput" accept="image/*" style="display:none">
+<input type="file" id="fileInput" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/*" style="display:none">
+<input type="file" id="jsonInput" accept=".json,application/json" style="display:none">
 
 <script>
 /* =========================================================
@@ -201,6 +233,9 @@ const WIKI_CSS = `
 .wiki-body .fake-link{color:#0275d8;cursor:pointer}
 .wiki-body .fake-link:hover{text-decoration:underline}
 .wiki-body .fake-link.red,.wiki-body a.red{color:#ff0000}
+.wiki-body a.ext-link{color:#009900}
+.wiki-body a.ext-link:before{content:'';display:inline-block;width:.9em;height:1.02em;margin-right:2px;vertical-align:-2px;
+  background:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAAWCAYAAAAinad/AAABCUlEQVR42uWUMUvDUBDHfycd3KygQzcdm0kyZSukwwMXP0KHZnNsR6EUHJuxmw5+AIeODnGUTNKpoVBoN5dCtND5HJQSahIQX0Hofzzu/e7d/+49UVXFkg6wqP8LqwBIX/4M0p7ui2f2B7CRF5Ean2omlIwFhwl6Uc9E33l+OqYZF8I6RA0fFl3kIdyq6SCjTGYrZdCI6MRNwlyYd4l7mPD4Dbq7VtonW8zlPTIMCKev3JzVqBe2Gc95My7nHhBDMBSCUodqm9ycAQS8LKv4JiXyShhXE9T4sLgt8+zrNkkrZWAUNcUDSMaCM/pZRz5U9cjWc5rZXFp3J0tbAU5/eXoFrDOe7ce3/Qk2JFJHTDfa8wAAAABJRU5ErkJggg==) no-repeat center/contain}
 .wiki-title{font-size:1.95em;font-weight:700;line-height:1.35;margin:0 0 3px;color:#373a3c;letter-spacing:-.4px}
 .wiki-cat{font-size:.88em;color:#373a3c;margin:0 0 14px;line-height:1.6}
 .wiki-cat .cat-body{color:#0275d8}
@@ -250,6 +285,12 @@ const WIKI_CSS = `
 .folder-table{width:100%;border:0;margin:0;font-size:1em}
 .folder-table td,.folder-table th{border:1px solid #e3e5e8;text-align:center;padding:5px 8px}
 [data-ph]:empty:before{content:attr(data-ph);color:#b6bcbf}
+@media (max-width:640px){
+  .wiki-body{font-size:15px}
+  .wiki-toc{min-width:0;width:100%;padding-right:12px}
+  .wiki-table{display:block;overflow-x:auto}
+  .wiki-title{font-size:1.7em}
+}
 `;
 document.getElementById('wikiStyle').textContent = WIKI_CSS;
 
@@ -717,16 +758,21 @@ $('#btnLink').addEventListener('click',()=>{
   if(!bodyReady()) return;
   const sel=(savedRange&&!savedRange.collapsed)?savedRange.toString():'';
   dialog({title:'링크 넣기',
-    note:'주소를 비워두면 실제로 이동하지 않고 파란 글씨로 보이기만 합니다.',
+    note:'주소를 비워두면 실제로 이동하지 않고 파란 글씨로 보이기만 합니다. 외부 링크는 초록색 아이콘과 함께 여기 적은 이름이 그대로 표시됩니다.',
     fields:[
-      {key:'text',label:'보이는 글자',value:sel||'문서 이름'},
+      {key:'text',label:'보이는 이름',value:sel,ph:'외부 링크면 여기 적은 이름이 아이콘 옆에 표시됩니다'},
       {key:'url',label:'주소(선택)',value:'',ph:'another.html 또는 https://...'},
-      {key:'color',label:'색',type:'select',options:[['blue','파란색 (있는 문서)'],['red','빨간색 (없는 문서)']]}
+      {key:'color',label:'종류',type:'select',options:[['blue','문서 링크 (파란색)'],['red','없는 문서 (빨간색)'],['ext','외부 링크 (아이콘 표시)']]}
     ],
     onOk:v=>{
-      const t=v.text.trim()||'문서 이름', cls=v.color==='red'?' red':'';
-      insertAtSaved(v.url.trim()
-        ? '<a class="wiki-link'+cls+'" href="'+escAttr(v.url.trim())+'" target="_blank" rel="noopener">'+esc(t)+'</a>&#8203;'
+      const url=v.url.trim();
+      let t=v.text.trim();
+      if(!t&&v.color==='ext'&&url){ try{t=new URL(url.match(/^https?:/i)?url:'https://'+url).hostname.replace(/^www\./,'');}catch(e){} }
+      if(!t) t='문서 이름';
+      if(v.color==='ext'&&!url){toast('외부 링크는 주소가 필요합니다');return;}
+      const cls=v.color==='red'?' red':(v.color==='ext'?' ext-link':'');
+      insertAtSaved(url
+        ? '<a class="wiki-link'+cls+'" href="'+escAttr(url)+'" target="_blank" rel="noopener">'+esc(t)+'</a>&#8203;'
         : '<span class="fake-link'+cls+'">'+esc(t)+'</span>&#8203;');
     }});
 });
@@ -812,11 +858,36 @@ $('#folderBar').addEventListener('click',e=>{
 
 /* 사진 */
 $('#btnImage').addEventListener('click',()=>{ if(!bodyReady())return; $('#fileInput').click(); });
-$('#fileInput').addEventListener('change',e=>{
-  const f=e.target.files[0]; if(!f) return;
+function placeImage(src,tail){
+  insertAtSaved('<div class="img-block img-center"><img class="wiki-img" src="'+src+'" style="width:60%"></div>'+(tail||''));
+}
+function insertImageFile(f,tail){
+  if(!f) return;
+  const isGif=/gif/i.test(f.type)||/\.gif$/i.test(f.name||'');
   const rd=new FileReader();
-  rd.onload=()=>insertAtSaved('<div class="img-block img-center"><img class="wiki-img" src="'+rd.result+'" style="width:60%"></div><p><br></p>');
+  rd.onload=()=>{
+    const src=rd.result;
+    if(isGif){                                   // GIF는 움직임을 지켜야 하므로 손대지 않음
+      if(f.size>3*1024*1024) toast('용량이 큰 GIF라 파일이 무거워질 수 있어요');
+      placeImage(src,tail); return;
+    }
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=1600;
+      if(img.width<=MAX){placeImage(src,tail);return;}
+      const cv=document.createElement('canvas'), sc=MAX/img.width;
+      cv.width=MAX; cv.height=Math.round(img.height*sc);
+      cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+      placeImage(cv.toDataURL(/png/i.test(f.type)?'image/png':'image/jpeg',0.92),tail);
+      toast('큰 사진이라 가로 1600px로 줄여 넣었습니다');
+    };
+    img.onerror=()=>placeImage(src,tail);
+    img.src=src;
+  };
   rd.readAsDataURL(f);
+}
+$('#fileInput').addEventListener('change',e=>{
+  insertImageFile(e.target.files[0],'<p><br></p>');
   e.target.value='';
 });
 let selImg=null;
@@ -990,9 +1061,7 @@ $('#wiki').addEventListener('paste',e=>{
   const img=[...dt.items].find(i=>i.type.startsWith('image/'));
   if(img){
     e.preventDefault();
-    const rd=new FileReader();
-    rd.onload=()=>insertAtSaved('<div class="img-block img-center"><img class="wiki-img" src="'+rd.result+'" style="width:60%"></div>');
-    rd.readAsDataURL(img.getAsFile());
+    insertImageFile(img.getAsFile());
     return;
   }
   e.preventDefault();
@@ -1048,6 +1117,59 @@ $('#btnHtml').addEventListener('click',()=>{
     URL.revokeObjectURL(a.href); toast('저장했습니다');
   };
 });
+/* 파일 메뉴 */
+$('#btnFile').addEventListener('click',()=>{
+  const it=(k,t,d)=>'<button class="fileitem" data-file="'+k+'"><b>'+t+'</b><span>'+d+'</span></button>';
+  openModal('파일','<div class="filemenu">'+
+    it('save','저장 (.json)','편집 중인 내용을 파일로 내려받습니다. 나중에 이어서 작업할 수 있어요.')+
+    it('load','불러오기','저장해 둔 .json 파일을 다시 엽니다.')+
+    it('html','HTML 코드','완성 문서 전체 또는 본문 조각을 복사·내려받습니다.')+
+    it('png','이미지로 저장','문서 전체를 PNG 그림 한 장으로 저장합니다.')+
+    '</div>','<button class="btn" onclick="closeModal()">닫기</button>');
+  const map={save:'#btnSave',load:'#btnLoad',html:'#btnHtml',png:'#btnPng'};
+  $('#modal').querySelectorAll('[data-file]').forEach(b=>{
+    b.onclick=()=>{const t=map[b.dataset.file];closeModal();$(t).click();};
+  });
+});
+
+/* 작업 내용 저장 / 불러오기 */
+function editorHTMLForSave(){
+  const c=$('#wiki').cloneNode(true);
+  c.querySelectorAll('#docTitle,#catBody,#preamble,.toc-text,.head-title,.section-body,.fn-text')
+   .forEach(n=>n.setAttribute('contenteditable','true'));
+  c.querySelectorAll('.wiki-img').forEach(n=>n.classList.remove('sel'));
+  return c.innerHTML;
+}
+$('#btnSave').addEventListener('click',()=>{
+  const name=($('#docTitle').textContent.trim()||'깡통위키문서').replace(/[\\/:*?"<>|]/g,'_');
+  const data={app:'kkangtong-wiki',version:1,savedAt:new Date().toISOString(),
+              title:$('#docTitle').textContent,html:editorHTMLForSave()};
+  const blob=new Blob([JSON.stringify(data)],{type:'application/json;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=name+'.json'; a.click();
+  URL.revokeObjectURL(a.href);
+  toast('저장했습니다. 사진이 들어 있으면 파일이 클 수 있어요');
+});
+$('#btnLoad').addEventListener('click',()=>$('#jsonInput').click());
+$('#jsonInput').addEventListener('change',e=>{
+  const f=e.target.files[0]; e.target.value='';
+  if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    let d=null;
+    try{d=JSON.parse(rd.result);}catch(err){toast('저장 파일을 읽을 수 없습니다');return;}
+    if(!d||typeof d.html!=='string'){toast('이 생성기의 저장 파일이 아닙니다');return;}
+    confirmBox('불러오면 지금 작업 중인 내용이 사라집니다. 계속할까요?',()=>{
+      $('#wiki').innerHTML=d.html;
+      if(document.body.classList.contains('preview')) $('#btnPreview').click();
+      savedRange=null;lastEditable=null;selImg=null;lastCell=null;lastCells=[];lastFolder=null;
+      renumber(); renderFootnotes(); updateBars(); commit();
+      toast('불러왔습니다');
+    },'불러오기');
+  };
+  rd.readAsText(f);
+});
+
 $('#btnPng').addEventListener('click',async()=>{
   document.body.classList.add('capturing');
   if(selImg) selImg.classList.remove('sel');
