@@ -85,6 +85,7 @@ body.capturing [contenteditable]{outline:none!important}
   <button class="btn" data-cmd="italic" title="기울임 (Ctrl+I)"><i>I</i></button>
   <button class="btn" data-cmd="underline" title="밑줄 (Ctrl+U)"><u>U</u></button>
   <button class="btn" data-cmd="strikeThrough" title="취소선"><s>S</s></button>
+  <input type="color" id="colorPick" value="#ff0000" title="글자 색 고르기">
   <input type="text" id="colorHex" value="#ff0000" size="7" title="글자 색 헥스코드">
   <button class="btn" id="btnColor" title="선택한 글자에 색 적용">색 적용</button>
   <span class="sep"></span>
@@ -100,6 +101,7 @@ body.capturing [contenteditable]{outline:none!important}
   <button class="btn" id="btnDetail">상세 내용 안내</button>
   <button class="btn" id="btnImage">사진</button>
   <button class="btn" id="btnTable">표</button>
+  <button class="btn" id="btnFolder">접는 틀</button>
   <span class="sep"></span>
   <button class="btn" id="btnClear" title="서식 지우기">서식 지우기</button>
 </div>
@@ -148,7 +150,18 @@ body.capturing [contenteditable]{outline:none!important}
     <button class="btn" data-i="del">사진 삭제</button>
   </div>
 
-  <p class="hint editor-only">문서 제목·분류·서두·목차·본문을 클릭해 바로 입력하세요. 목차와 본문 제목은 서로 연동됩니다.</p>
+  <div class="bar" id="folderBar">
+    <b>접는 틀</b>
+    <label>머리글 배경 <input type="color" id="fhBg" value="#13398f"></label>
+    <input type="text" id="fhBgHex" value="#13398f" size="8">
+    <label>머리글 글자 <input type="color" id="fhFg" value="#ffffff"></label>
+    <input type="text" id="fhFgHex" value="#ffffff" size="8">
+    <button class="btn" data-f="apply">색 적용</button>
+    <button class="btn" data-f="state">처음 상태 전환(접힘/펼침)</button>
+    <button class="btn" data-f="del">틀 삭제</button>
+  </div>
+
+  <p class="hint editor-only">문서 제목·분류·서두·목차·본문을 클릭해 바로 입력하세요. 목차와 본문 제목은 서로 연동되고, Ctrl+Z로 되돌리기 · Ctrl+Shift+Z로 다시 실행할 수 있습니다.</p>
 
   <div id="paper">
     <div id="wiki" class="wiki-body">
@@ -228,6 +241,14 @@ const WIKI_CSS = `
 .fn-item{margin:1px 0}
 .fn-no{color:#0275d8;margin-right:4px}
 .wiki-section.collapsed>.wiki-heading{border-bottom-style:dashed}
+.wiki-folder{border:1px solid #c8ccd0;margin:12px 0;font-size:.95em;background:#fff}
+.folder-head{padding:7px 10px;text-align:center;font-weight:700;line-height:1.5}
+.folder-toggle{padding:3px 10px;text-align:center;font-size:.9em;border-top:1px solid #c8ccd0;cursor:pointer;color:#373a3c;background:#fff;user-select:none}
+.folder-toggle:hover{background:#f6f7f8}
+.folder-body{border-top:1px solid #c8ccd0}
+.wiki-folder[data-open="0"]>.folder-body{display:none}
+.folder-table{width:100%;border:0;margin:0;font-size:1em}
+.folder-table td,.folder-table th{border:1px solid #e3e5e8;text-align:center;padding:5px 8px}
 [data-ph]:empty:before{content:attr(data-ph);color:#b6bcbf}
 `;
 document.getElementById('wikiStyle').textContent = WIKI_CSS;
@@ -249,6 +270,13 @@ const FOLD_JS = `
     if(btn) btn.textContent=collapsed?'[펼치기]':'[접기]';
   }
   document.addEventListener('click',function(e){
+    var f=e.target.closest?e.target.closest('.folder-toggle'):null;
+    if(f){
+      e.preventDefault();
+      var box=f.closest('.wiki-folder');
+      box.setAttribute('data-open', box.getAttribute('data-open')==='1'?'0':'1');
+      return;
+    }
     var b=e.target.closest?e.target.closest('.fold-btn'):null;
     if(!b) return;
     e.preventDefault();
@@ -285,6 +313,7 @@ function dialog(opts){
     if(fl.type==='textarea') body+='<textarea id="'+id+'" class="small">'+esc(fl.value||'')+'</textarea>';
     else if(fl.type==='select') body+='<select id="'+id+'">'+fl.options.map(o=>'<option value="'+escAttr(o[0])+'">'+esc(o[1])+'</option>').join('')+'</select>';
     else if(fl.type==='checkbox') body+='<span><input type="checkbox" id="'+id+'"'+(fl.value?' checked':'')+'></span>';
+    else if(fl.type==='color') body+='<span><input type="color" id="'+id+'" value="'+escAttr(fl.value||'#000000')+'"> <input type="text" id="'+id+'h" value="'+escAttr(fl.value||'#000000')+'" size="9"></span>';
     else if(fl.type==='number') body+='<span><input type="number" id="'+id+'" value="'+escAttr(fl.value||'')+'" min="'+(fl.min||1)+'" max="'+(fl.max||99)+'"></span>';
     else body+='<input type="text" id="'+id+'" value="'+escAttr(fl.value||'')+'" placeholder="'+escAttr(fl.ph||'')+'">';
     body+='</div>';
@@ -293,9 +322,15 @@ function dialog(opts){
     '<button class="btn" data-x="cancel">취소</button><button class="btn primary" data-x="ok">'+(opts.okText||'넣기')+'</button>');
   const modal=$('#modal');
   modal.querySelector('[data-x="cancel"]').onclick=closeModal;
+  f.forEach((fl,i)=>{
+    if(fl.type!=='color') return;
+    const pk=$('#fld'+i), tx=$('#fld'+i+'h');
+    pk.oninput=()=>tx.value=pk.value;
+    tx.oninput=()=>{const c=hex(tx.value); if(c&&c.length===7) pk.value=c;};
+  });
   modal.querySelector('[data-x="ok"]').onclick=()=>{
     const v={};
-    f.forEach((fl,i)=>{const el=$('#fld'+i);v[fl.key]=fl.type==='checkbox'?el.checked:el.value;});
+    f.forEach((fl,i)=>{const el=$('#fld'+i);v[fl.key]=fl.type==='checkbox'?el.checked:(fl.type==='color'?$('#fld'+i+'h').value:el.value);});
     closeModal(); opts.onOk&&opts.onOk(v);
   };
   modal.addEventListener('keydown',e=>{
@@ -309,6 +344,46 @@ function confirmBox(msg,onOk,okText){
   $('#modal').querySelector('[data-x="cancel"]').onclick=closeModal;
   $('#modal').querySelector('[data-x="ok"]').onclick=()=>{closeModal();onOk();};
 }
+
+/* --- 되돌리기 / 다시 실행 --- */
+let undoStack=[], redoStack=[], current='', commitTimer=null;
+const snapNow=()=>$('#wiki').innerHTML;
+function commit(){
+  const now=snapNow();
+  if(now===current) return;
+  undoStack.push(current);
+  if(undoStack.length>40) undoStack.shift();
+  current=now; redoStack.length=0;
+}
+function commitSoon(){clearTimeout(commitTimer);commitTimer=setTimeout(commit,600);}
+function restoreState(html){
+  $('#wiki').innerHTML=html;
+  savedRange=null; lastEditable=null; selImg=null; lastCell=null; lastCells=[];
+  updateBars();
+}
+function undo(){
+  clearTimeout(commitTimer); commit();
+  if(!undoStack.length){toast('되돌릴 작업이 없습니다');return;}
+  redoStack.push(current);
+  current=undoStack.pop();
+  restoreState(current);
+}
+function redo(){
+  if(!redoStack.length){toast('다시 실행할 작업이 없습니다');return;}
+  undoStack.push(current);
+  current=redoStack.pop();
+  restoreState(current);
+}
+document.addEventListener('keydown',e=>{
+  if(!(e.ctrlKey||e.metaKey)) return;
+  const k=(e.key||'').toLowerCase();
+  if(k!=='z'&&k!=='y') return;
+  if(e.target.closest&&e.target.closest('#veil')) return;
+  const tag=e.target.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
+  e.preventDefault();
+  (k==='y'||e.shiftKey)?redo():undo();
+});
 
 /* --- 선택 영역 기억 & Range 기반 삽입 --- */
 let savedRange=null, lastEditable=null;
@@ -344,7 +419,7 @@ function insertAtSaved(html){
   savedRange=nr;
   const s=getSelection(); s.removeAllRanges(); s.addRange(nr);
   lastEditable.focus();
-  afterEdit();
+  afterEdit(); commit();
 }
 function restoreSel(){
   if(!savedRange||!lastEditable||!lastEditable.isConnected) return false;
@@ -469,17 +544,18 @@ document.addEventListener('click',e=>{
   else if(act==='del'){
     const name=sec.querySelector('.head-title').textContent||'이 문단';
     confirmBox('<b>'+esc(sec.dataset.num+' '+name)+'</b> 문단을 삭제합니다. 하위 문단은 한 단계 올라갑니다.',()=>{
-      sec.remove(); renumber(); toast('문단을 삭제했습니다');
+      sec.remove(); renumber(); commit(); toast('문단을 삭제했습니다');
     });
+    return;
   }
+  commit();
 });
 
 /* 목차 번호 클릭 → 해당 문단으로 이동 */
-$('#tocList').addEventListener('click',e=>{
-  if(e.target.classList.contains('toc-num')){
-    const sec=document.getElementById(e.target.closest('.toc-item').dataset.ref);
-    sec&&sec.scrollIntoView({behavior:'smooth',block:'center'});
-  }
+document.addEventListener('click',e=>{
+  const num=e.target.closest('#tocList .toc-num'); if(!num) return;
+  const sec=document.getElementById(num.closest('.toc-item').dataset.ref);
+  sec&&sec.scrollIntoView({behavior:'smooth',block:'center'});
 });
 
 /* 목차 ↔ 본문 제목 연동 */
@@ -499,7 +575,7 @@ document.addEventListener('input',e=>{
     const h=sec&&sec.querySelector('.head-title');
     if(h&&h!==document.activeElement) h.textContent=t.textContent;
   }
-  if(t.closest&&t.closest('#wiki')) afterEdit();
+  if(t.closest&&t.closest('#wiki')){afterEdit();commitSoon();}
 });
 
 /* 한 줄 입력칸에서 Enter 처리 */
@@ -544,7 +620,7 @@ function applyOutline(items){
   });
   const cont=$('#sections'); cont.innerHTML='';
   items.forEach(it=>cont.appendChild(newSection(it.level,it.title,keep[it.title]||'')));
-  renumber();
+  renumber(); commit();
 }
 $('#btnOutline').addEventListener('click',()=>{
   openModal('목차 생성 / 편집',
@@ -567,11 +643,17 @@ $$('#toolbar [data-cmd]').forEach(b=>b.addEventListener('click',()=>exec(b.datas
 $('#btnClear').addEventListener('click',()=>exec('removeFormat'));
 
 /* 글자 색: 선택 영역을 직접 감싸므로 확실하게 적용됨 */
+$('#colorPick').addEventListener('input',()=>{$('#colorHex').value=$('#colorPick').value;});
+$('#colorHex').addEventListener('input',()=>{const c=hex($('#colorHex').value);if(c&&c.length===7)$('#colorPick').value=c;});
 $('#btnColor').addEventListener('click',()=>{
   const c=hex($('#colorHex').value);
   if(!c){toast('헥스코드를 확인하세요 (예: #ff0000)');return;}
   if(!savedRange||savedRange.collapsed){toast('색을 입힐 글자를 드래그해 선택하세요');return;}
   const r=savedRange.cloneRange();
+  // 표·문단 경계를 넘는 선택이면 브라우저 명령을 쓴다(칸이 늘어나는 문제 방지)
+  const frag=r.cloneContents();
+  const crossy=frag.querySelector('table,tr,td,th,section,li,hr,.wiki-folder,.section-body');
+  if(crossy){ exec('foreColor',c); commit(); return; }
   const span=document.createElement('span');
   span.style.color=c;
   span.appendChild(r.extractContents());
@@ -580,7 +662,7 @@ $('#btnColor').addEventListener('click',()=>{
   savedRange=nr;
   const s=getSelection(); s.removeAllRanges(); s.addRange(nr);
   lastEditable&&lastEditable.focus();
-  afterEdit();
+  afterEdit(); commit();
 });
 
 $('#btnHr').addEventListener('click',()=>insertAtSaved('<hr class="wiki-hr">'));
@@ -669,6 +751,65 @@ $('#btnDetail').addEventListener('click',()=>{
     }});
 });
 
+/* 접는 틀 */
+function folderHTML(title,bg,fg,R,C,open){
+  let rows='';
+  for(let r=0;r<R;r++){
+    rows+='<tr>';
+    for(let c=0;c<C;c++) rows+='<td><br></td>';
+    rows+='</tr>';
+  }
+  return '<div class="wiki-folder" data-open="'+(open?'1':'0')+'">'+
+    '<div class="folder-head" style="background:'+escAttr(bg)+';color:'+escAttr(fg)+'">'+esc(title)+'</div>'+
+    '<div class="folder-toggle">[ 펼치기 · 접기 ]</div>'+
+    '<div class="folder-body"><table class="wiki-table folder-table"><tbody>'+rows+'</tbody></table></div>'+
+    '</div><p><br></p>';
+}
+$('#btnFolder').addEventListener('click',()=>{
+  if(!bodyReady()) return;
+  dialog({title:'접는 틀 넣기',okText:'틀 넣기',
+    note:'머리글을 누르는 게 아니라 아래의 <b>[ 펼치기 · 접기 ]</b> 줄을 눌러 여닫습니다. 안쪽 칸은 표 도구로 자유롭게 늘리고 줄일 수 있습니다.',
+    fields:[
+      {key:'t',label:'머리글',value:'대한민국 국무총리 직속기관'},
+      {key:'bg',label:'머리글 배경',type:'color',value:'#13398f'},
+      {key:'fg',label:'머리글 글자',type:'color',value:'#ffffff'},
+      {key:'r',label:'행 수',type:'number',value:3,min:1,max:40},
+      {key:'c',label:'열 수',type:'number',value:3,min:1,max:20},
+      {key:'open',label:'처음부터 펼치기',type:'checkbox',value:false}
+    ],
+    onOk:v=>insertAtSaved(folderHTML(v.t.trim()||'틀 제목',hex(v.bg)||'#13398f',hex(v.fg)||'#ffffff',
+      Math.max(1,+v.r||3),Math.max(1,+v.c||3),v.open))});
+});
+function curFolder(){
+  const s=getSelection(); if(!s.rangeCount) return null;
+  let n=s.getRangeAt(0).startContainer; n=n.nodeType===1?n:n.parentElement;
+  if(!n||!n.closest('#wiki')) return null;
+  return n.closest('.wiki-folder');
+}
+let lastFolder=null;
+$('#fhBg').addEventListener('input',()=>{$('#fhBgHex').value=$('#fhBg').value;});
+$('#fhBgHex').addEventListener('input',()=>{const c=hex($('#fhBgHex').value);if(c&&c.length===7)$('#fhBg').value=c;});
+$('#fhFg').addEventListener('input',()=>{$('#fhFgHex').value=$('#fhFg').value;});
+$('#fhFgHex').addEventListener('input',()=>{const c=hex($('#fhFgHex').value);if(c&&c.length===7)$('#fhFg').value=c;});
+$('#folderBar').addEventListener('click',e=>{
+  const b=e.target.closest('[data-f]'); if(!b) return;
+  const box=lastFolder;
+  if(!box||!box.isConnected){toast('틀의 머리글을 먼저 클릭하세요');return;}
+  const a=b.dataset.f, head=box.querySelector('.folder-head');
+  if(a==='apply'){
+    const bg=hex($('#fhBgHex').value), fg=hex($('#fhFgHex').value);
+    if(!bg||!fg){toast('헥스코드를 확인하세요');return;}
+    head.style.background=bg; head.style.color=fg; toast('머리글 색을 바꿨습니다');
+  }
+  else if(a==='state'){
+    const open=box.getAttribute('data-open')==='1'?'0':'1';
+    box.setAttribute('data-open',open);
+    toast(open==='1'?'펼친 상태로 저장됩니다':'접힌 상태로 저장됩니다');
+  }
+  else if(a==='del'){ confirmBox('이 접는 틀을 삭제합니다.',()=>{box.remove();lastFolder=null;updateBars();commit();}); return; }
+  commit();
+});
+
 /* 사진 */
 $('#btnImage').addEventListener('click',()=>{ if(!bodyReady())return; $('#fileInput').click(); });
 $('#fileInput').addEventListener('change',e=>{
@@ -688,7 +829,7 @@ $('#wiki').addEventListener('click',e=>{
   if(del){
     const n=del.closest('.fn-item').dataset.n;
     const mark=document.getElementById('fnref-'+n);
-    confirmBox('주석 ['+n+']을 삭제합니다.',()=>{mark&&mark.remove();renderFootnotes();toast('주석을 삭제했습니다');});
+    confirmBox('주석 ['+n+']을 삭제합니다.',()=>{mark&&mark.remove();renderFootnotes();commit();toast('주석을 삭제했습니다');});
     return;
   }
   if(selImg){selImg.classList.remove('sel');selImg=null;}
@@ -714,6 +855,7 @@ $('#imgBar').addEventListener('click',e=>{
       }});
   }
   else if(a==='del'){box.remove();selImg=null;updateBars();}
+  commit();
 });
 
 /* 표 */
@@ -809,8 +951,8 @@ $('#tableBar').addEventListener('click',e=>{
     nc.innerHTML=cell.innerHTML; nc.style.cssText=cell.style.cssText;
     cell.replaceWith(nc); lastCell=nc;
   }
-  else if(a==='tableDel'){ confirmBox('이 표를 삭제합니다.',()=>{table.remove();lastCell=null;lastCells=[];updateBars();}); return; }
-  updateBars();
+  else if(a==='tableDel'){ confirmBox('이 표를 삭제합니다.',()=>{table.remove();lastCell=null;lastCells=[];updateBars();commit();}); return; }
+  updateBars(); commit();
 });
 function updateBars(){
   const c=curCell();
@@ -826,8 +968,20 @@ function updateBars(){
     $('#tblRows').value=t.rows.length;
     $('#tblCols').value=Math.max(...[...t.rows].map(r=>r.cells.length));
   }
+  const fold=curFolder();
+  if(fold) lastFolder=fold; else if(inWiki) lastFolder=null;
+  const hasFolder=!!(lastFolder&&lastFolder.isConnected);
+  if(hasFolder){
+    const head=lastFolder.querySelector('.folder-head');
+    const cs=getComputedStyle(head);
+    const toHex=v=>{const m=v.match(/\d+/g);return m?'#'+m.slice(0,3).map(x=>(+x).toString(16).padStart(2,'0')).join(''):null;};
+    const bg=toHex(cs.backgroundColor), fg=toHex(cs.color);
+    if(bg&&document.activeElement!==$('#fhBgHex')){$('#fhBg').value=bg;$('#fhBgHex').value=bg;}
+    if(fg&&document.activeElement!==$('#fhFgHex')){$('#fhFg').value=fg;$('#fhFgHex').value=fg;}
+  }
   $('#tableBar').classList.toggle('on',hasCell&&!selImg&&!prev);
   $('#imgBar').classList.toggle('on',!!selImg&&!prev);
+  $('#folderBar').classList.toggle('on',hasFolder&&!hasCell&&!selImg&&!prev);
 }
 
 /* 붙여넣기: 서식 없는 글자 + 이미지 */
@@ -869,7 +1023,7 @@ function exportHTML(full){
   const inner=cleanClone().outerHTML;
   const script='<scr'+'ipt>'+FOLD_JS+'</scr'+'ipt>';
   if(!full) return '<style>'+WIKI_CSS+'</style>\n'+inner+'\n'+script;
-  const title=($('#docTitle').textContent.trim())||(SECS()[0]?SECS()[0].querySelector('.head-title').textContent:'나무위키 스타일 문서');
+  const title=($('#docTitle').textContent.trim())||(SECS()[0]?SECS()[0].querySelector('.head-title').textContent:'깡통위키 문서');
   return '<!DOCTYPE html>\n<html lang="ko">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>'+
     esc(title)+'</title>\n<style>\nbody{margin:0;background:#f2f2f2}\n.page{max-width:1000px;margin:0 auto;background:#fff;padding:26px 30px 40px;min-height:100vh}\n'+
     WIKI_CSS+'</style>\n</head>\n<body>\n<div class="page">\n'+inner+'\n</div>\n'+script+'\n</body>\n</html>';
@@ -923,6 +1077,7 @@ SECS()[0].querySelector('.section-body').innerHTML=
   '<div class="wiki-detail">'+DETAIL_ICON+'이 문서의 사용법에 대한 내용은 <span class="fake-link">도움말</span> 문서를 참고하십시오.</div>'+
   '본문을 입력하세요. 글자를 드래그해 선택한 뒤 <b>굵게</b>, <s>취소선</s>, 색, 링크, 주석<a class="fn-ref" contenteditable="false" data-fn="주석은 문서 맨 아래에 자동으로 정리됩니다.">[*]</a>을 적용할 수 있습니다.';
 renderFootnotes();
+current=snapNow();
 </script>
 </body>
 </html>
