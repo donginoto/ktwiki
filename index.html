@@ -156,6 +156,18 @@ body.capturing [contenteditable]{outline:none!important}
     <label>열 <input type="number" id="tblCols" min="1" max="30" value="3"></label>
     <button class="btn" data-t="resize">크기 적용</button>
     <span class="sep"></span>
+    <b>칸 크기</b>
+    <label>너비 <input type="number" id="cellW" min="0" max="2000" placeholder="px"></label>
+    <label>높이 <input type="number" id="cellH" min="0" max="2000" placeholder="px"></label>
+    <select id="sizeScope">
+      <option value="cell">이 칸</option>
+      <option value="col">이 열(너비)</option>
+      <option value="row">이 행(높이)</option>
+    </select>
+    <button class="btn" data-t="size">크기 적용</button>
+    <button class="btn" data-t="sizeClear">크기 자동</button>
+    <button class="btn" data-t="even">행·열 균등</button>
+    <span class="sep"></span>
     <b>끼워넣기</b>
     <button class="btn" data-t="rowAbove">위에 행</button>
     <button class="btn" data-t="rowBelow">아래에 행</button>
@@ -651,7 +663,7 @@ $('#btnAddTop').addEventListener('click',()=>{
 });
 
 /* =========================================================
-   4) 목차 생성 / 편집 
+   4) 목차 생성 / 편집
    ========================================================= */
 function currentOutlineText(){
   return SECS().map(s=>'  '.repeat(+s.dataset.level-1)+s.querySelector('.head-title').textContent).join('\n');
@@ -775,7 +787,7 @@ $('#btnLink').addEventListener('click',()=>{
   if(!bodyReady()) return;
   const sel=(savedRange&&!savedRange.collapsed)?savedRange.toString():'';
   dialog({title:'링크 넣기',
-    note:'주소를 비워두면 실제로 이동하지 않고 파란 글씨로 보이기만 합니다. 외부 링크는 초록색으로 보입니다.',
+    note:'주소를 비워두면 실제로 이동하지 않고 파란 글씨로 보이기만 합니다. 외부 링크는 초록색 아이콘과 함께 여기 적은 이름이 그대로 표시됩니다.',
     fields:[
       {key:'text',label:'보이는 이름',value:sel,ph:'외부 링크면 여기 적은 이름이 아이콘 옆에 표시됩니다'},
       {key:'url',label:'주소(선택)',value:'',ph:'another.html 또는 https://...'},
@@ -832,7 +844,7 @@ function folderHTML(title,bg,fg,R,C,open){
 $('#btnFolder').addEventListener('click',()=>{
   if(!bodyReady()) return;
   dialog({title:'접는 틀 넣기',okText:'틀 넣기',
-    note:'아래의 <b>[ 펼치기 · 접기 ]</b> 줄을 눌러 여닫습니다. 안쪽 칸은 표 도구로 자유롭게 늘리고 줄일 수 있습니다.',
+    note:'머리글을 누르는 게 아니라 아래의 <b>[ 펼치기 · 접기 ]</b> 줄을 눌러 여닫습니다. 안쪽 칸은 표 도구로 자유롭게 늘리고 줄일 수 있습니다.',
     fields:[
       {key:'t',label:'머리글',value:'제목'},
       {key:'bg',label:'머리글 배경',type:'color',value:'#13398f'},
@@ -1105,6 +1117,34 @@ $('#tableBar').addEventListener('click',e=>{
     targets.forEach(c=>c.style.backgroundColor=color||'');
     toast(color?targets.length+'칸에 배경색을 넣었습니다':'배경색을 지웠습니다');
   }
+  else if(a==='size'){
+    const w=parseInt($('#cellW').value,10), h=parseInt($('#cellH').value,10);
+    if(isNaN(w)&&isNaN(h)){toast('너비 또는 높이를 입력하세요');return;}
+    const scope=$('#sizeScope').value;
+    let targets=[cell];
+    if(scope==='col') targets=[...table.rows].map(r=>r.cells[idx]).filter(Boolean);
+    else if(scope==='row') targets=[...tr.children];
+    targets.forEach(c=>{
+      if(!isNaN(w)&&(scope==='cell'||scope==='col')) c.style.width=w+'px';
+      if(!isNaN(h)&&(scope==='cell'||scope==='row')) c.style.height=h+'px';
+    });
+    if(!isNaN(w)) table.style.width='auto';
+    toast('크기를 적용했습니다');
+  }
+  else if(a==='sizeClear'){
+    let targets=[cell];
+    const scope=$('#sizeScope').value;
+    if(scope==='col') targets=[...table.rows].map(r=>r.cells[idx]).filter(Boolean);
+    else if(scope==='row') targets=[...tr.children];
+    targets.forEach(c=>{c.style.width='';c.style.height='';});
+    toast('크기를 자동으로 되돌렸습니다');
+  }
+  else if(a==='even'){
+    const cols=Math.max(...[...table.rows].map(r=>[...r.cells].reduce((a,c)=>a+(c.colSpan||1),0)));
+    table.style.width='100%'; table.style.tableLayout='fixed';
+    [...table.querySelectorAll('td,th')].forEach(c=>{c.style.width='';c.style.height='';});
+    toast('행과 열을 균등하게 맞췄습니다');
+  }
   else if(a==='merge'){ if(!mergeCells()) return; toast('칸을 합쳤습니다'); }
   else if(a==='split'){ if(!splitCell(cell)) return; toast('병합을 해제했습니다'); }
   else if(a==='alignC') cell.style.textAlign='center';
@@ -1129,7 +1169,9 @@ function updateBars(){
   if(hasCell && document.activeElement!==$('#tblRows') && document.activeElement!==$('#tblCols')){
     const t=lastCell.closest('table');
     $('#tblRows').value=t.rows.length;
-    $('#tblCols').value=Math.max(...[...t.rows].map(r=>r.cells.length));
+    $('#tblCols').value=Math.max(...[...t.rows].map(r=>[...r.cells].reduce((a,c)=>a+(c.colSpan||1),0)));
+    if(document.activeElement!==$('#cellW')) $('#cellW').value=parseInt(lastCell.style.width)||'';
+    if(document.activeElement!==$('#cellH')) $('#cellH').value=parseInt(lastCell.style.height)||'';
   }
   const fold=curFolder();
   if(fold) lastFolder=fold; else if(inWiki) lastFolder=null;
